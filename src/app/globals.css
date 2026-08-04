@@ -1,0 +1,218 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-medical: #2563EB;
+  --color-medical-dark: #1D4ED8;
+  --color-health: #10B981;
+  --color-health-dark: #059669;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --radius: 0.625rem;
+}
+
+:root {
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+  --primary: #2563EB;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #F1F5F9;
+  --accent-foreground: #0F172A;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #2563EB;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0F172A;
+  --sidebar-accent: #EFF6FF;
+}
+
+.dark {
+  --background: #020617;
+  --foreground: #F8FAFC;
+  --card: #0F172A;
+  --card-foreground: #F8FAFC;
+  --popover: #0F172A;
+  --popover-foreground: #F8FAFC;
+  --primary: #2563EB;
+  --primary-foreground: #FFFFFF;
+  --secondary: #1E293B;
+  --secondary-foreground: #F8FAFC;
+  --muted: #1E293B;
+  --muted-foreground: #94A3B8;
+  --accent: #1E293B;
+  --accent-foreground: #F8FAFC;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #1E293B;
+  --input: #1E293B;
+  --ring: #2563EB;
+  --sidebar: #0F172A;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-accent: #1E3A5F;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+/* Scrollbar personalizada - estilo Spotify/Linear */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* Glass effect */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.dark .glass {
+  background: rgba(15, 23, 42, 0.7);
+}
+
+/* Card hover premium */
+.card-hover {
+  transition: all 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.1);
+}
+
+/* Animações profissionais */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in { animation: fadeIn 0.3s ease-out; }
+.animate-slide-in-left { animation: slideInLeft 0.3s ease-out; }
+.animate-slide-in-right { animation: slideInRight 0.3s ease-out; }
+.animate-scale-in { animation: scaleIn 0.2s ease-out; }
+
+/* Skeleton loading premium */
+.skeleton {
+  @apply animate-pulse rounded-md;
+  background: linear-gradient(90deg, var(--muted) 25%, var(--border) 50%, var(--muted) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Focus ring acessível */
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Transições suaves para modo escuro */
+html {
+  transition: color-scheme 0.3s;
+}
+
+/* ─────────────────────────────────────────────
+   Impressão - Escala de Turnos / Relatórios
+   ───────────────────────────────────────────── */
+@media print {
+  /* Esconde navegação, cabeçalho e botões de ação */
+  aside,
+  header {
+    display: none !important;
+  }
+
+  /* Remover fundos e sombras desnecessários */
+  body {
+    background: #fff !important;
+  }
+
+  /* Permitir que a tabela da escala ocupe toda a largura da página */
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  /* Expandir larguras fixas para caber na página */
+  table {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Remover sticky para evitar sobreposição na impressão */
+  .sticky {
+    position: static !important;
+  }
+
+  /* Contraste das células de turno na impressão */
+  .bg-blue-100, .bg-green-100, .bg-yellow-100, .bg-red-100,
+  .bg-amber-100, .bg-orange-100, .bg-indigo-100 {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
