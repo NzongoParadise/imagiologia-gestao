@@ -342,7 +342,7 @@ export function Header({ onMenuClick }: HeaderProps) {
     }
   }
 
-  function isOnline(ultimoVisto: string | null): boolean {
+function isOnline(ultimoVisto: string | null): boolean {
     if (!ultimoVisto) return false;
     try {
       const diff = Date.now() - new Date(ultimoVisto).getTime();
@@ -350,6 +350,17 @@ export function Header({ onMenuClick }: HeaderProps) {
     } catch {
       return false;
     }
+  }
+
+  async function handleSignOut() {
+    setProfileOpen(false);
+    try {
+      await signOut({ redirect: false, redirectTo: "/login" });
+    } catch {
+      // Ignora erros, continua com a navegação
+    }
+    router.push("/login");
+    router.refresh();
   }
 
   return (
@@ -842,8 +853,8 @@ Ver todos os resultados para "{searchTerm}"
                   </button>
                 </div>
                 <div className="border-t p-1.5">
-                  <button
-                    onClick={() => signOut({ redirectTo: "/login" })}
+<button
+                    onClick={handleSignOut}
                     className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                   >
                     <LogOut className="h-4 w-4" />
