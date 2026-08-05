@@ -241,10 +241,10 @@ export function DashboardClient({
               </div>
             ) : (
               <div className="space-y-3">
-                {modalidadeData.map((item) => {
+{modalidadeData.map((item, i) => {
                   const percentage = (item.exames / maxCount) * 100;
                   return (
-                    <div key={item.name} className="space-y-1.5">
+                    <div key={`${item.name}-${i}`} className="space-y-1.5">
                       <div className="flex items-center justify-between text-sm">
                         <span className="font-medium">{item.name}</span>
                         <span className="font-semibold text-muted-foreground">{item.exames}</span>
