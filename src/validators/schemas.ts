@@ -64,6 +64,26 @@ export const turnoSchema = z.object({
   observacao: z.string().nullable().optional(),
 });
 
+export const solicitacaoExameSchema = z.object({
+  pacienteId: z.number({ message: "Paciente é obrigatório" }),
+  tipoExameId: z.number({ message: "Tipo de exame é obrigatório" }),
+  diagnosticoClinico: z.string().min(3, "Diagnóstico clínico é obrigatório"),
+  prioridade: z.string().default("Normal"),
+  justificacaoClinica: z.string().min(3, "Justificação clínica é obrigatória"),
+  observacoes: z.string().nullable().optional(),
+  medicoSolicitante: z.string().nullable().optional(),
+});
+
+export const alterarPrioridadeSchema = z.object({
+  prioridade: z.enum(["Normal", "Prioritário", "Urgente", "Emergência"]),
+  justificacao: z.string().min(3, "Justificação é obrigatória"),
+});
+
+export const laudoSchema = z.object({
+  exameId: z.number(),
+  conteudo: z.string().min(10, "O conteúdo do laudo deve ter pelo menos 10 caracteres"),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type PacienteInput = z.infer<typeof pacienteSchema>;
 export type ExameInput = z.infer<typeof exameSchema>;
@@ -71,4 +91,7 @@ export type TecnicoInput = z.infer<typeof tecnicoSchema>;
 export type ProcedenciaInput = z.infer<typeof procedenciaSchema>;
 export type TipoExameInput = z.infer<typeof tipoExameSchema>;
 export type TurnoInput = z.infer<typeof turnoSchema>;
+export type SolicitacaoExameInput = z.infer<typeof solicitacaoExameSchema>;
+export type AlterarPrioridadeInput = z.infer<typeof alterarPrioridadeSchema>;
+export type LaudoInput = z.infer<typeof laudoSchema>;
 

@@ -3,14 +3,15 @@
 // Módulo puro — seguro para importar em client e server components.
 // ---------------------------------------------------------------------------
 
-export type Role = "ADMIN" | "TECNICO" | "RECEPCAO";
+export type Role = "ADMIN" | "TECNICO" | "RECEPCAO" | "MEDICO";
 
-export const ROLES: Role[] = ["ADMIN", "TECNICO", "RECEPCAO"];
+export const ROLES: Role[] = ["ADMIN", "TECNICO", "RECEPCAO", "MEDICO"];
 
 export const ROLE_LABELS: Record<Role, string> = {
   ADMIN: "Administrador",
   TECNICO: "Técnico",
   RECEPCAO: "Receção",
+  MEDICO: "Médico",
 };
 
 export type Modulo =
@@ -27,7 +28,8 @@ export type Modulo =
   | "utilizadores"
   | "configuracoes"
   | "historico"
-  | "chat";
+  | "chat"
+  | "medico";
 
 export type Acao = "ver" | "criar" | "editar" | "eliminar";
 
@@ -100,6 +102,29 @@ const PERMISSOES: Record<Role, PermissaoString[]> = {
     "chat.ver",
     "chat.criar",
   ],
+
+  MEDICO: [
+    // Dashboard
+    "dashboard.ver",
+    // Portal do Médico
+    "medico.ver",
+    "medico.criar",
+    "medico.editar",
+    // Pacientes (consulta)
+    "pacientes.ver",
+    // Exames (solicitar/consultar)
+    "exames.ver",
+    "exames.criar",
+    // Imagens (visualização)
+    "imagens.ver",
+    // Histórico do paciente
+    "historico.ver",
+    // Tipos de exame (consulta)
+    "tipos-exame.ver",
+    // Comunicação com radiologistas
+    "chat.ver",
+    "chat.criar",
+  ],
 };
 
 /**
@@ -138,5 +163,14 @@ export const MENU_MODULOS: Record<string, Modulo> = {
   "/configuracoes": "configuracoes",
   "/historico": "historico",
   "/chat": "chat",
+  // Portal do Médico
+  "/medico": "medico",
+  "/medico/solicitar": "medico",
+  "/medico/acompanhamento": "medico",
+  "/medico/comparar": "medico",
+  "/medico/agenda": "medico",
+  "/medico/notificacoes": "medico",
+  "/medico/exames": "medico",
+  "/medico/pacientes": "medico",
 };
 

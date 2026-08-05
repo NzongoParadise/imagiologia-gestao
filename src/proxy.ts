@@ -15,6 +15,7 @@ export default async function proxy(request: Request) {
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/cron") ||
     pathname.startsWith("/api/uploads") ||
     pathname.startsWith("/uploads") ||
     pathname.startsWith("/login") ||

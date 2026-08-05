@@ -32,7 +32,21 @@ async function main() {
       role: "TECNICO",
     },
   });
-  console.log(`✓ Technician user created: ${tecnico.email} (password: tecnico123)`);
+console.log(`✓ Technician user created: ${tecnico.email} (password: tecnico123)`);
+
+  // Create doctor (Médico) user
+  const medicoPassword = await hash("medico123", 10);
+  const medico = await prisma.utilizador.upsert({
+    where: { email: "medico@imagiologia.pt" },
+    update: {},
+    create: {
+      nome: "Dr. Francisco Antunes",
+      email: "medico@imagiologia.pt",
+      password: medicoPassword,
+      role: "MEDICO",
+    },
+  });
+  console.log(`✓ Doctor user created: ${medico.email} (password: medico123)`);
 
   // Create exam types
   const examTypes = [
@@ -173,8 +187,9 @@ await prisma.exame.upsert({
 
   console.log("\n🎉 Database seeding completed successfully!");
   console.log("\n📋 Login credentials:");
-  console.log("   Admin:  admin@imagiologia.pt / admin123");
+console.log("   Admin:  admin@imagiologia.pt / admin123");
   console.log("   Técnico: tecnico@imagiologia.pt / tecnico123");
+  console.log("   Médico:  medico@imagiologia.pt / medico123");
 }
 
 main()

@@ -22,6 +22,11 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+HeartPulse,
+  ClipboardPlus,
+  History,
+  GitCompareArrows,
+  BellRing,
 } from "lucide-react";
 
 const menuItems = [
@@ -34,9 +39,18 @@ const menuItems = [
   { href: "/imagens", label: "Imagens", icon: ImageIcon },
   { href: "/tecnicos", label: "Técnicos", icon: Stethoscope },
   { href: "/procedencias", label: "Procedências", icon: Building2 },
-{ href: "/relatorios", label: "Relatórios", icon: BarChart3 },
+  { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
   { href: "/utilizadores", label: "Utilizadores", icon: UserCog },
+  { href: "/historico", label: "Histórico", icon: History },
   { href: "/configuracoes", label: "Configurações", icon: Settings },
+
+  // Portal do Médico
+{ href: "/medico", label: "Dashboard Médico", icon: HeartPulse },
+  { href: "/medico/solicitar", label: "Solicitar Exame", icon: ClipboardPlus },
+  { href: "/medico/acompanhamento", label: "Acompanhamento", icon: History },
+  { href: "/medico/comparar", label: "Comparar Exames", icon: GitCompareArrows },
+  { href: "/medico/agenda", label: "Agenda", icon: Calendar },
+  { href: "/medico/notificacoes", label: "Notificações", icon: BellRing },
 ];
 
 const sidebarVariants = {

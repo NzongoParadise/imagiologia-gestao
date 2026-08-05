@@ -8,129 +8,158 @@ datasource db {
 }
 
 model Utilizador {
-  id        Int       @id @default(autoincrement())
-  nome      String
-  email     String    @unique
-  password  String
-  role      String    @default("TECNICO")
-  ativo     Boolean   @default(true)
-  ultimoVisto DateTime? @map("ultimo_visto")
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  historico Historico[]
-  exames    Exame[]   @relation("ExamesRealizados")
-  notificacoes Notificacao[]
-  anotacoes Anotacao[]
-  turnosCriados Turno[] @relation("TurnosCriados")
-  conversasCriadas Conversa[] @relation("ConversasCriadas")
-  participacoes ConversaParticipante[]
-  mensagens Mensagem[]
+  id                Int                    @id @default(autoincrement())
+  nome              String
+  email             String                 @unique
+  password          String
+  role              String                 @default("TECNICO")
+  ativo             Boolean                @default(true)
+  ultimoVisto       DateTime?              @map("ultimo_visto")
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  historico         Historico[]
+  exames            Exame[]                @relation("ExamesRealizados")
+  examesSolicitados Exame[]                @relation("ExamesSolicitados")
+  laudosAssinados   Laudo[]                @relation("LaudosAssinados")
+  notificacoes      Notificacao[]
+  anotacoes         Anotacao[]
+  turnosCriados     Turno[]                @relation("TurnosCriados")
+  conversasCriadas  Conversa[]             @relation("ConversasCriadas")
+  participacoes     ConversaParticipante[]
+  mensagens         Mensagem[]
+  backups           Backup[]
 }
 
 model Paciente {
-  id              Int       @id @default(autoincrement())
-  numeroProcesso  String    @unique @map("numero_processo")
-  nome            String
-  dataNascimento  DateTime? @map("data_nascimento")
-  sexo            String?   @map("sexo")
-  telefone        String?
-  email           String?
-  endereco        String?   @map("endereco")
-  documento       String?   @map("documento")
-  nif             String?
-  bi              String?
-  foto            String?
-  observacoes     String?
-  createdAt       DateTime  @default(now()) @map("criado_em")
-  updatedAt       DateTime  @updatedAt @map("atualizado_em")
-  exames          Exame[]
-  historico       Historico[]
-  notificacoes    Notificacao[]
-  anotacoes       Anotacao[]
+  id             Int           @id @default(autoincrement())
+  numeroProcesso String        @unique @map("numero_processo")
+  nome           String
+  dataNascimento DateTime?     @map("data_nascimento")
+  sexo           String?       @map("sexo")
+  telefone       String?
+  email          String?
+  endereco       String?       @map("endereco")
+  documento      String?       @map("documento")
+  nif            String?
+  bi             String?
+  foto           String?
+  observacoes    String?
+  createdAt      DateTime      @default(now()) @map("criado_em")
+  updatedAt      DateTime      @updatedAt @map("atualizado_em")
+  exames         Exame[]
+  historico      Historico[]
+  notificacoes   Notificacao[]
+  anotacoes      Anotacao[]
 
   @@map("pacientes")
 }
 
 model Tecnico {
-  id        Int       @id @default(autoincrement())
-  nome      String
-  email     String?
-  telefone  String?
+  id            Int      @id @default(autoincrement())
+  nome          String
+  email         String?
+  telefone      String?
   especialidade String?
-  ativo     Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  exames    Exame[]
-  turnos    Turno[]
+  ativo         Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  exames        Exame[]
+  turnos        Turno[]
 }
 
 model Procedencia {
-  id        Int       @id @default(autoincrement())
-  nome      String    @unique
+  id        Int      @id @default(autoincrement())
+  nome      String   @unique
   descricao String?
-  ativo     Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   exames    Exame[]
 }
 
 model TipoExame {
-  id          Int       @id @default(autoincrement())
-  nome        String    @unique
-  modalidade  String?
-  descricao   String?
-  duracaoMin  Int?
-  preco       Float?
-  ativo       Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  exames      Exame[]
+  id         Int      @id @default(autoincrement())
+  nome       String   @unique
+  modalidade String?
+  descricao  String?
+  duracaoMin Int?
+  preco      Float?
+  ativo      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  exames     Exame[]
 }
 
 model Exame {
-  id                Int       @id @default(autoincrement())
-  codigo            String?   @unique @map("codigo")
-  pacienteId        Int       @map("paciente_id")
-  tipoExameId       Int       @map("tipo_exame_id")
-  tecnicoId         Int?      @map("tecnico_id")
-  procedenciaId     Int?      @map("procedencia_id")
-  medicoSolicitante String?   @map("medico_solicitante")
-  observacao        String?   @map("observacao")
-  estado            String    @default("Pendente")
-  dataExame         DateTime  @default(now()) @map("data_exame")
-  createdAt         DateTime  @default(now()) @map("criado_em")
-  updatedAt         DateTime  @updatedAt @map("atualizado_em")
+  id                  Int      @id @default(autoincrement())
+  codigo              String?  @unique @map("codigo")
+  pacienteId          Int      @map("paciente_id")
+  tipoExameId         Int      @map("tipo_exame_id")
+  tecnicoId           Int?     @map("tecnico_id")
+  procedenciaId       Int?     @map("procedencia_id")
+  medicoSolicitante   String?  @map("medico_solicitante")
+  observacao          String?  @map("observacao")
+  estado              String   @default("Solicitado")
+  prioridade          String   @default("Normal")
+  diagnosticoClinico  String?  @map("diagnostico_clinico")
+  justificacaoClinica String?  @map("justificacao_clinica")
+  dataExame           DateTime @default(now()) @map("data_exame")
+  createdAt           DateTime @default(now()) @map("criado_em")
+  updatedAt           DateTime @updatedAt @map("atualizado_em")
 
-  paciente     Paciente    @relation(fields: [pacienteId], references: [id])
-  tipoExame    TipoExame   @relation(fields: [tipoExameId], references: [id])
-  tecnico      Tecnico?    @relation(fields: [tecnicoId], references: [id])
-  procedencia  Procedencia? @relation(fields: [procedenciaId], references: [id])
-  realizadoPor Utilizador? @relation("ExamesRealizados", fields: [realizadoPorId], references: [id])
-  realizadoPorId Int?      @map("realizado_por_id")
-  imagens      Imagem[]
-  historico    Historico[]
-  notificacoes Notificacao[]
-  anotacoes    Anotacao[]
+  paciente        Paciente      @relation(fields: [pacienteId], references: [id])
+  tipoExame       TipoExame     @relation(fields: [tipoExameId], references: [id])
+  tecnico         Tecnico?      @relation(fields: [tecnicoId], references: [id])
+  procedencia     Procedencia?  @relation(fields: [procedenciaId], references: [id])
+  realizadoPor    Utilizador?   @relation("ExamesRealizados", fields: [realizadoPorId], references: [id])
+  realizadoPorId  Int?          @map("realizado_por_id")
+  solicitadoPor   Utilizador?   @relation("ExamesSolicitados", fields: [solicitadoPorId], references: [id])
+  solicitadoPorId Int?          @map("solicitado_por_id")
+  laudos          Laudo[]
+  imagens         Imagem[]
+  historico       Historico[]
+  notificacoes    Notificacao[]
+  anotacoes       Anotacao[]
 
-  @@map("exames")
   @@index([pacienteId])
   @@index([tipoExameId])
   @@index([tecnicoId])
   @@index([procedenciaId])
   @@index([dataExame])
   @@index([estado])
+  @@index([prioridade])
+  @@map("exames")
+}
+
+model Laudo {
+  id              Int       @id @default(autoincrement())
+  exameId         Int       @map("exame_id")
+  conteudo        String
+  medicoAssinouId Int?      @map("medico_assinou_id")
+  assinado        Boolean   @default(false)
+  assinatura      String?
+  assinadoEm      DateTime? @map("assinado_em")
+  createdAt       DateTime  @default(now()) @map("criado_em")
+  updatedAt       DateTime  @updatedAt @map("atualizado_em")
+
+  exame         Exame       @relation(fields: [exameId], references: [id])
+  medicoAssinou Utilizador? @relation("LaudosAssinados", fields: [medicoAssinouId], references: [id])
+
+  @@unique([exameId])
+  @@index([medicoAssinouId])
+  @@map("laudos")
 }
 
 model Imagem {
-  id        Int      @id @default(autoincrement())
-  exameId   Int
-  filename  String
+  id           Int      @id @default(autoincrement())
+  exameId      Int
+  filename     String
   originalName String
-  mimeType  String
-  tamanho   Int
-  path      String
-  dados     Bytes?
-  createdAt DateTime @default(now())
+  mimeType     String
+  tamanho      Int
+  path         String
+  dados        Bytes?
+  createdAt    DateTime @default(now())
 
   exame Exame @relation(fields: [exameId], references: [id])
 
@@ -146,15 +175,15 @@ model Configuracao {
 }
 
 model Notificacao {
-  id          Int      @id @default(autoincrement())
-  titulo      String
-  mensagem    String
-  tipo        String   @default("info")
-  lida        Boolean  @default(false)
+  id           Int      @id @default(autoincrement())
+  titulo       String
+  mensagem     String
+  tipo         String   @default("info")
+  lida         Boolean  @default(false)
   utilizadorId Int?
-  exameId     Int?
-  pacienteId  Int?
-  createdAt   DateTime @default(now()) @map("criado_em")
+  exameId      Int?
+  pacienteId   Int?
+  createdAt    DateTime @default(now()) @map("criado_em")
 
   utilizador Utilizador? @relation(fields: [utilizadorId], references: [id])
   exame      Exame?      @relation(fields: [exameId], references: [id])
@@ -167,15 +196,15 @@ model Notificacao {
 }
 
 model Historico {
-  id          Int      @id @default(autoincrement())
-  acao        String
-  entidade    String
-  entidadeId  Int?
-  descricao   String?
+  id           Int      @id @default(autoincrement())
+  acao         String
+  entidade     String
+  entidadeId   Int?
+  descricao    String?
   utilizadorId Int?
-  pacienteId  Int?
-  exameId     Int?
-  createdAt   DateTime @default(now())
+  pacienteId   Int?
+  exameId      Int?
+  createdAt    DateTime @default(now())
 
   utilizador Utilizador? @relation(fields: [utilizadorId], references: [id])
   paciente   Paciente?   @relation(fields: [pacienteId], references: [id])
@@ -186,16 +215,16 @@ model Historico {
 }
 
 model Anotacao {
-  id          Int      @id @default(autoincrement())
-  conteudo    String
-  tipo        String   @default("geral")
-  entidade    String?
-  entidadeId  Int?
+  id           Int      @id @default(autoincrement())
+  conteudo     String
+  tipo         String   @default("geral")
+  entidade     String?
+  entidadeId   Int?
   utilizadorId Int?
-  exameId     Int?
-  pacienteId  Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  exameId      Int?
+  pacienteId   Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   utilizador Utilizador? @relation(fields: [utilizadorId], references: [id])
   exame      Exame?      @relation(fields: [exameId], references: [id])
@@ -207,48 +236,48 @@ model Anotacao {
 }
 
 model Turno {
-  id          Int       @id @default(autoincrement())
-  tecnicoId   Int       @map("tecnico_id")
+  id          Int      @id @default(autoincrement())
+  tecnicoId   Int      @map("tecnico_id")
   data        DateTime
-  horaInicio  String    @map("hora_inicio")
-  horaFim     String    @map("hora_fim")
-  tipo        String    @default("Normal")
-  estado      String    @default("Agendado")
+  horaInicio  String   @map("hora_inicio")
+  horaFim     String   @map("hora_fim")
+  tipo        String   @default("Normal")
+  estado      String   @default("Agendado")
   observacao  String?
-  createdById Int?      @map("criado_por_id")
-  createdAt   DateTime  @default(now()) @map("criado_em")
-  updatedAt   DateTime  @updatedAt @map("atualizado_em")
+  createdById Int?     @map("criado_por_id")
+  createdAt   DateTime @default(now()) @map("criado_em")
+  updatedAt   DateTime @updatedAt @map("atualizado_em")
 
   tecnico   Tecnico     @relation(fields: [tecnicoId], references: [id])
   createdBy Utilizador? @relation("TurnosCriados", fields: [createdById], references: [id])
 
-  @@map("turnos")
   @@index([tecnicoId])
   @@index([data])
+  @@map("turnos")
 }
 
 model Conversa {
-  id        Int      @id @default(autoincrement())
-  titulo    String?
-  criadaPorId Int?   @map("criada_por_id")
-  createdAt DateTime @default(now()) @map("criado_em")
-  updatedAt DateTime @updatedAt @map("atualizado_em")
+  id          Int      @id @default(autoincrement())
+  titulo      String?
+  criadaPorId Int?     @map("criada_por_id")
+  createdAt   DateTime @default(now()) @map("criado_em")
+  updatedAt   DateTime @updatedAt @map("atualizado_em")
 
-  criadaPor Utilizador? @relation("ConversasCriadas", fields: [criadaPorId], references: [id])
+  criadaPor     Utilizador?            @relation("ConversasCriadas", fields: [criadaPorId], references: [id])
   participantes ConversaParticipante[]
   mensagens     Mensagem[]
 
-  @@map("conversas")
   @@index([criadaPorId])
   @@index([updatedAt])
+  @@map("conversas")
 }
 
 model ConversaParticipante {
-  id            Int      @id @default(autoincrement())
-  conversaId    Int      @map("conversa_id")
-  utilizadorId  Int      @map("utilizador_id")
-  lidaEm        DateTime? @map("lida_em")
-  createdAt     DateTime @default(now()) @map("criado_em")
+  id           Int       @id @default(autoincrement())
+  conversaId   Int       @map("conversa_id")
+  utilizadorId Int       @map("utilizador_id")
+  lidaEm       DateTime? @map("lida_em")
+  createdAt    DateTime  @default(now()) @map("criado_em")
 
   conversa   Conversa   @relation(fields: [conversaId], references: [id], onDelete: Cascade)
   utilizador Utilizador @relation(fields: [utilizadorId], references: [id], onDelete: Cascade)
@@ -272,4 +301,20 @@ model Mensagem {
   @@index([utilizadorId])
   @@index([createdAt])
   @@map("mensagens")
+}
+
+model Backup {
+  id          Int         @id @default(autoincrement())
+  nome        String
+  tipo        String      @default("manual") // manual | automatico
+  tamanho     Int         @default(0) // bytes do JSON comprimido
+  numRegistos Int         @default(0)
+  dados       Bytes // JSON comprimido (gzip)
+  criadoPorId Int?
+  criadoEm    DateTime    @default(now())
+  criadoPor   Utilizador? @relation(fields: [criadoPorId], references: [id])
+
+  @@index([criadoEm])
+  @@index([criadoPorId])
+  @@map("backups")
 }

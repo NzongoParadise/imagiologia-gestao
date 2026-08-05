@@ -12,9 +12,17 @@ import {
   Sun,
   Monitor,
   Loader2,
+  DatabaseBackup,
+  Download,
+  Upload,
+  Trash2,
+  RotateCcw,
+  Plus,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { toast } from "sonner";
+import { BackupSection } from "@/features/backup/components/backup-section";
 
 interface CampoConfig {
   id: string;
@@ -63,13 +71,29 @@ const settingsSections: SecaoConfig[] = [
       { id: "seguranca_two_factor", label: "Autenticação de dois fatores", type: "toggle", defaultValue: false },
     ],
   },
-  {
+{
     id: "aparencia",
     label: "Aparência",
     icon: Palette,
     fields: [
       { id: "aparencia_tema", label: "Tema", type: "custom", defaultValue: "system" },
       { id: "aparencia_compacto", label: "Modo compacto", type: "toggle", defaultValue: false },
+    ],
+  },
+  {
+    id: "backup",
+    label: "Backup",
+    icon: DatabaseBackup,
+    fields: [
+      { id: "backup_auto", label: "Backup automático", type: "toggle", defaultValue: true },
+      {
+        id: "backup_frequencia",
+        label: "Frequência",
+        type: "select",
+        options: ["diario", "semanal", "mensal"],
+        defaultValue: "diario",
+      },
+      { id: "backup_manter", label: "Manter últimos (nº)", type: "number", defaultValue: "10" },
     ],
   },
 ];
@@ -202,103 +226,111 @@ export function ConfiguracoesClient() {
             </h2>
           </div>
 
-          <div className="rounded-xl border bg-card divide-y">
-            {settingsSections
-              .find((s) => s.id === activeSection)
-              ?.fields.map((field) => {
-                const value = getValue(field.id, field.defaultValue);
-                return (
-                  <div
-                    key={field.id}
-                    className="flex items-center justify-between px-5 py-4"
-                  >
-                    <div>
-                      <label className="text-sm font-medium">{field.label}</label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {field.type === "toggle" && (
-                        <label className="relative inline-flex cursor-pointer items-center">
-                          <input
-                            type="checkbox"
-                            checked={value === "true"}
-                            onChange={(e) => handleToggle(field.id, e.target.checked)}
-                            className="peer sr-only"
-                          />
-                          <div className="h-5 w-9 rounded-full bg-muted after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-primary peer-checked:after:translate-x-full" />
-                        </label>
-                      )}
-                      {field.type === "select" && (
-                        <select
-                          value={value}
-                          onChange={(e) => handleChange(field.id, e.target.value)}
-                          className="rounded-lg border bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
-                        >
-                          {(field.options || []).map((opt) => (
-                            <option key={opt} value={opt}>{opt}</option>
-                          ))}
-                        </select>
-                      )}
-                      {field.type === "number" && (
-                        <input
-                          type="number"
-                          value={value}
-                          onChange={(e) => handleChange(field.id, e.target.value)}
-                          className="w-20 rounded-lg border bg-background px-3 py-1.5 text-sm text-right focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
-                        />
-                      )}
-                      {field.type === "text" && (
-                        <input
-                          type="text"
-                          value={value}
-                          onChange={(e) => handleChange(field.id, e.target.value)}
-                          className="w-48 rounded-lg border bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
-                        />
-                      )}
-                      {field.type === "custom" && (
-                        <div className="flex items-center gap-1 rounded-lg border p-0.5">
-                          {[
-                            { value: "light", icon: Sun },
-                            { value: "dark", icon: Moon },
-                            { value: "system", icon: Monitor },
-                          ].map(({ value: optValue, icon: Icon }) => (
-                            <button
-                              key={optValue}
-                              onClick={() => {
-                                setTheme(optValue as typeof theme);
-                                handleChange(field.id, optValue);
-                              }}
-                              className={cn(
-                                "rounded-md p-1.5 transition-colors",
-                                value === optValue
-                                  ? "bg-primary text-primary-foreground"
-                                  : "text-muted-foreground hover:bg-accent"
-                              )}
-                            >
-                              <Icon className="h-4 w-4" />
-                            </button>
-                          ))}
+{activeSection === "backup" ? (
+            <div className="space-y-6">
+              <BackupSection />
+            </div>
+          ) : (
+            <>
+              <div className="rounded-xl border bg-card divide-y">
+                {settingsSections
+                  .find((s) => s.id === activeSection)
+                  ?.fields.map((field) => {
+                    const value = getValue(field.id, field.defaultValue);
+                    return (
+                      <div
+                        key={field.id}
+                        className="flex items-center justify-between px-5 py-4"
+                      >
+                        <div>
+                          <label className="text-sm font-medium">{field.label}</label>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
+                        <div className="flex items-center gap-2">
+                          {field.type === "toggle" && (
+                            <label className="relative inline-flex cursor-pointer items-center">
+                              <input
+                                type="checkbox"
+                                checked={value === "true"}
+                                onChange={(e) => handleToggle(field.id, e.target.checked)}
+                                className="peer sr-only"
+                              />
+                              <div className="h-5 w-9 rounded-full bg-muted after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-primary peer-checked:after:translate-x-full" />
+                            </label>
+                          )}
+                          {field.type === "select" && (
+                            <select
+                              value={value}
+                              onChange={(e) => handleChange(field.id, e.target.value)}
+                              className="rounded-lg border bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
+                            >
+                              {(field.options || []).map((opt) => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                          )}
+                          {field.type === "number" && (
+                            <input
+                              type="number"
+                              value={value}
+                              onChange={(e) => handleChange(field.id, e.target.value)}
+                              className="w-20 rounded-lg border bg-background px-3 py-1.5 text-sm text-right focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
+                            />
+                          )}
+                          {field.type === "text" && (
+                            <input
+                              type="text"
+                              value={value}
+                              onChange={(e) => handleChange(field.id, e.target.value)}
+                              className="w-48 rounded-lg border bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
+                            />
+                          )}
+                          {field.type === "custom" && (
+                            <div className="flex items-center gap-1 rounded-lg border p-0.5">
+                              {[
+                                { value: "light", icon: Sun },
+                                { value: "dark", icon: Moon },
+                                { value: "system", icon: Monitor },
+                              ].map(({ value: optValue, icon: Icon }) => (
+                                <button
+                                  key={optValue}
+                                  onClick={() => {
+                                    setTheme(optValue as typeof theme);
+                                    handleChange(field.id, optValue);
+                                  }}
+                                  className={cn(
+                                    "rounded-md p-1.5 transition-colors",
+                                    value === optValue
+                                      ? "bg-primary text-primary-foreground"
+                                      : "text-muted-foreground hover:bg-accent"
+                                  )}
+                                >
+                                  <Icon className="h-4 w-4" />
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
 
-          <div className="flex justify-end">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
-            >
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              {saving ? "A guardar..." : "Guardar Configurações"}
-            </button>
-          </div>
+              <div className="flex justify-end">
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  {saving ? "A guardar..." : "Guardar Configurações"}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </motion.div>

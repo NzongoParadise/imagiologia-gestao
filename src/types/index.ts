@@ -27,15 +27,21 @@ export interface ExameType {
   medicoSolicitante: string | null;
   observacao: string | null;
   estado: string;
+  prioridade: string;
+  diagnosticoClinico: string | null;
+  justificacaoClinica: string | null;
   dataExame: Date;
   createdAt: Date;
   updatedAt: Date;
   realizadoPorId: number | null;
+  solicitadoPorId: number | null;
   paciente?: PacienteType;
   tipoExame?: TipoExameType;
   tecnico?: TecnicoType;
   procedencia?: ProcedenciaType;
   realizadoPor?: UtilizadorType;
+  solicitadoPor?: UtilizadorType;
+  laudos?: LaudoType[];
   imagens?: ImagemType[];
 }
 
@@ -86,13 +92,69 @@ export interface ImagemType {
   exame?: ExameType;
 }
 
-export type Role = "ADMIN" | "TECNICO" | "RECEPCAO";
+export type Role = "ADMIN" | "TECNICO" | "RECEPCAO" | "MEDICO";
 
 export const ROLE_LABELS: Record<Role, string> = {
   ADMIN: "Administrador",
   TECNICO: "Técnico",
   RECEPCAO: "Receção",
+  MEDICO: "Médico",
 };
+
+export interface LaudoType {
+  id: number;
+  exameId: number;
+  conteudo: string;
+  medicoAssinouId: number | null;
+  assinado: boolean;
+  assinatura: string | null;
+  assinadoEm: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  exame?: ExameType;
+  medicoAssinou?: UtilizadorType;
+}
+
+export type PrioridadeExame =
+  | "Normal"
+  | "Prioritário"
+  | "Urgente"
+  | "Emergência";
+
+export const PRIORIDADES_EXAME: {
+  value: PrioridadeExame;
+  label: string;
+  color: string;
+}[] = [
+  { value: "Normal", label: "Normal", color: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" },
+  { value: "Prioritário", label: "Prioritário", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
+  { value: "Urgente", label: "Urgente", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" },
+  { value: "Emergência", label: "Emergência", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
+];
+
+export type EstadosSolicitacao =
+  | "Solicitado"
+  | "Agendado"
+  | "Paciente Confirmado"
+  | "Exame Realizado"
+  | "Laudo em Elaboração"
+  | "Laudo Assinado"
+  | "Concluído"
+  | "Cancelado";
+
+export const ESTADOS_SOLICITACAO: {
+  value: EstadosSolicitacao;
+  label: string;
+}[] = [
+  { value: "Solicitado", label: "Solicitado" },
+  { value: "Agendado", label: "Agendado" },
+  { value: "Paciente Confirmado", label: "Paciente Confirmado" },
+  { value: "Exame Realizado", label: "Exame Realizado" },
+  { value: "Laudo em Elaboração", label: "Laudo em Elaboração" },
+  { value: "Laudo Assinado", label: "Laudo Assinado" },
+  { value: "Concluído", label: "Concluído" },
+  { value: "Cancelado", label: "Cancelado" },
+];
 
 export interface UtilizadorType {
   id: number;
