@@ -1,8 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { writeFile, mkdir, unlink } from "fs/promises";
-import { join } from "path";
 import { prisma } from "@/lib/db";
 import { registarHistorico } from "./historico-actions";
 import { autorizar } from "@/lib/permissions-server";
@@ -12,14 +10,8 @@ export async function uploadImagem(exameId: number, formData: FormData) {
   const file = formData.get("file") as File;
   if (!file) throw new Error("Nenhum ficheiro enviado");
 
-
-  const uploadDir = join(process.cwd(), "uploads", `exame-${exameId}`);
-  await mkdir(uploadDir, { recursive: true });
-
   const filename = `${Date.now()}-${file.name}`;
   const buffer = Buffer.from(await file.arrayBuffer());
-  const filepath = join(uploadDir, filename);
-  await writeFile(filepath, buffer);
 
   const imagem = await prisma.imagem.create({
     data: {
@@ -29,6 +21,7 @@ export async function uploadImagem(exameId: number, formData: FormData) {
       mimeType: file.type,
       tamanho: file.size,
       path: `/uploads/exame-${exameId}/${filename}`,
+      dados: buffer,
     },
   });
 
@@ -48,14 +41,6 @@ export async function removerImagem(id: number) {
   await autorizar("imagens", "eliminar");
   const imagem = await prisma.imagem.findUnique({ where: { id } });
   if (!imagem) throw new Error("Imagem não encontrada");
-
-
-  try {
-    const filepath = join(process.cwd(), imagem.path);
-    await unlink(filepath);
-  } catch {
-    console.warn("Ficheiro não encontrado no disco");
-  }
 
   await prisma.imagem.delete({ where: { id } });
 

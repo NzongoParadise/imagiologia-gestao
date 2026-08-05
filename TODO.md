@@ -1,13 +1,15 @@
-# Migração para Neon (PostgreSQL)
+# Upload de Imagens no Vercel — Armazenamento no Neon (bytea)
+
+## Contexto
+O upload de imagens dependia de `fs/promises` gravando no filesystem efêmero do Vercel, que não persiste. Vamos armazenar os bytes da imagem numa coluna `bytea` no Neon PostgreSQL, preservando as URLs `/api/uploads/...`.
 
 ## Passos
 
-- [x] 1. Alterar `provider` de `sqlite` para `postgresql` no `prisma/schema.prisma` (já feito)
-- [x] 2. Atualizar `.env` com `DATABASE_URL` do Neon
-- [x] 3. Atualizar `prisma/migrations/migration_lock.toml` para `provider = "postgresql"`
-- [x] 4. Remover migrações SQLite antigas
-- [x] 5. Criar migração inicial limpa para PostgreSQL
-- [x] 6. Aplicar migrações na Neon
-- [x] 7. Correr o seed para dados de referência
-- [x] 8. Regenerar cliente Prisma e verificar build
-
+- [ ] 1. Adicionar coluna `dados Bytea?` ao modelo `Imagem` no `prisma/schema.prisma`
+- [ ] 2. Criar e aplicar migração Prisma para a nova coluna
+- [ ] 3. Atualizar `uploadImagem()` em `src/server/actions/imagens-actions.ts` para gravar os bytes no banco
+- [ ] 4. Atualizar `removerImagem()` em `src/server/actions/imagens-actions.ts` para remover apenas o registo do banco
+- [ ] 5. Atualizar `src/app/api/uploads/[...path]/route.ts` para ler os bytes do banco em vez do disco
+- [ ] 6. Regenerar cliente Prisma (`prisma generate`)
+- [ ] 7. Testar fluxo de upload/leitura localmente
+- [ ] 8. Commit e push para o GitHub (redeploy no Vercel)

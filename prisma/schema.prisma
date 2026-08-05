@@ -129,6 +129,7 @@ model Imagem {
   mimeType  String
   tamanho   Int
   path      String
+  dados     Bytes?
   createdAt DateTime @default(now())
 
   exame Exame @relation(fields: [exameId], references: [id])
