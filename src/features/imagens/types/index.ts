@@ -19,6 +19,12 @@ export interface MLDiagnostico {
   regioesInteresse: MLRegiao[];
   /** Timestamp */
   processadoEm: string;
+  /** Aviso de segurança clínica (ferramenta de apoio, não substitui médico) */
+  aviso?: string;
+  /** Nome do modelo de IA utilizado */
+  modelo?: string;
+  /** Tempo de processamento no backend (ms) */
+  tempoProcessamentoMs?: number;
 }
 
 export interface MLAchado {

@@ -132,11 +132,22 @@ export function MLAnalise({ imagemId, imageUrl, imageName, tipoExame }: MLAnalis
                 >
                   <X className="h-4 w-4" />
                 </button>
-              </div>
+</div>
 
               <div className="p-4 space-y-5">
                 {/* Nome do ficheiro */}
                 <p className="text-xs text-muted-foreground truncate">{imageName}</p>
+
+                {/* Aviso de segurança clínica (sempre visível) */}
+                <div className="rounded-lg border-2 border-amber-300/60 bg-amber-50 dark:bg-amber-900/20 p-3">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                    <p className="text-xs text-amber-800 dark:text-amber-200">
+                      {resultado.aviso ||
+                        "⚠️ Ferramenta experimental de APOIO à decisão. Os resultados são hipóteses e NÃO substituem a avaliação de um médico especialista. O diagnóstico definitivo deve ser confirmado por médico."}
+                    </p>
+                  </div>
+                </div>
 
                 {/* Diagnostico Principal */}
                 {resultado.diagnosticoPrincipal && (

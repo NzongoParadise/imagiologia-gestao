@@ -6,22 +6,39 @@ import type {
   AchadoCategoria,
 } from "../types";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let modelo: any = null;
-let carregandoModelo = false;
-let filaEspera: Array<(value: unknown) => void> = [];
-let modeloPronto = false;
-
 /**
- * Mapeamento de modalidades de exame para diagnósticos possíveis
- * Baseado em literatura de radiologia e imagiologia médica
+ * Serviço de análise de imagens com IA.
+ *
+ * Estratégia:
+ *  1. Tenta chamar o backend de IA real (TorchXRayVision) via /api/ia/analisar.
+ *     Este endpoint é um proxy para o serviço Python (variável AI_BACKEND_URL).
+ *  2. Se o backend não estiver configurado/disponível, usa uma análise local
+ *     heurística (brilho/contraste/simetria) como FALLBACK de demonstração.
+ *
+ * ⚠️ Segurança clínica: ambas as vias produzem apenas hipóteses de APOIO.
+ * O diagnóstico definitivo deve ser feito por médico especialista.
  */
+
+// =========================================================================
+// Tipos auxiliares
+// =========================================================================
+interface MetadadosCalculados {
+  brilhoMedio: number;
+  nitidez: number;
+  contraste: number;
+  histograma: number[];
+  razaoAspecto: number;
+}
+
+// =========================================================================
+// Fallback heurístico (análise local de brilho/contraste/simetria)
+// NOTA: mantido apenas para demonstração sem backend. Não é diagnóstico médico.
+// =========================================================================
 const DIAGNOSTICOS_POR_MODALIDADE: Record<string, Array<{
   nome: string;
   descricao: string;
   categoria: AchadoCategoria;
   gravidade: "leve" | "moderado" | "severo";
-  padroesTextura: string[];
   limiarBrilho: [number, number];
   limiarContraste: number;
   simetriaEsperada: boolean;
@@ -29,201 +46,57 @@ const DIAGNOSTICOS_POR_MODALIDADE: Record<string, Array<{
   "Raio-X": [
     {
       nome: "Pneumonia",
-      descricao: "Opacidade pulmonar com broncogramas aereos sugestiva de pneumonia",
+      descricao: "Opacidade pulmonar com broncogramas aereos sugestiva de pneumonia (heurística de demonstração)",
       categoria: "opacidade",
       gravidade: "moderado",
-      padroesTextura: ["opacidade_difusa", "broncograma"],
       limiarBrilho: [30, 60],
       limiarContraste: 40,
       simetriaEsperada: false,
     },
     {
       nome: "Derrame Pleural",
-      descricao: "Opacidade homogenea no recesso costofrenico sugestiva de derrame pleural",
+      descricao: "Opacidade homogenea no recesso costofrenico (heurística de demonstração)",
       categoria: "derrame",
       gravidade: "moderado",
-      padroesTextura: ["opacidade_homogenea_base"],
       limiarBrilho: [20, 50],
       limiarContraste: 30,
       simetriaEsperada: false,
     },
     {
       nome: "Cardiomegalia",
-      descricao: "Aumento da silhueta cardiaca com indice cardiotoracico aumentado",
+      descricao: "Aumento da silhueta cardiaca (heurística de demonstração)",
       categoria: "cardiomegalia",
       gravidade: "moderado",
-      padroesTextura: ["massa_central", "alargamento_mediastino"],
       limiarBrilho: [40, 70],
       limiarContraste: 35,
       simetriaEsperada: true,
     },
     {
-      nome: "Atelectasia",
-      descricao: "Opacidade triangular com desvio de estruturas mediastinicas",
-      categoria: "atelectasia",
-      gravidade: "moderado",
-      padroesTextura: ["opacidade_triangular", "desvio_traqueia"],
-      limiarBrilho: [35, 65],
-      limiarContraste: 45,
-      simetriaEsperada: false,
-    },
-    {
       nome: "Pneumotorax",
-      descricao: "Presenca de ar no espaco pleural com colapso pulmonar parcial",
+      descricao: "Ar no espaco pleural (heurística de demonstração)",
       categoria: "pneumotorax",
       gravidade: "severo",
-      padroesTextura: ["hipertransparencia_periferica", "linha_pleural"],
       limiarBrilho: [60, 90],
       limiarContraste: 50,
       simetriaEsperada: false,
     },
     {
-      nome: "Edema Pulmonar",
-      descricao: "Opacidade intersticial bilateral sugestiva de edema pulmonar",
-      categoria: "edema",
-      gravidade: "moderado",
-      padroesTextura: ["opacidade_intersticial", "linhas_kerley"],
-      limiarBrilho: [25, 55],
-      limiarContraste: 25,
-      simetriaEsperada: true,
-    },
-    {
-      nome: "Nodulo Pulmonar",
-      descricao: "Nodulo pulmonar solitario com bordos bem definidos",
-      categoria: "nodulo",
-      gravidade: "leve",
-      padroesTextura: ["massa_arredondada", "densidade_aumentada"],
-      limiarBrilho: [45, 80],
-      limiarContraste: 55,
-      simetriaEsperada: false,
-    },
-    {
       nome: "Fratura",
-      descricao: "Solucao de continuidade ossea com alteracao do alinhamento",
+      descricao: "Solucao de continuidade ossea (heurística de demonstração)",
       categoria: "fratura",
       gravidade: "moderado",
-      padroesTextura: ["linha_radiotransparente", "descontinuidade_osso"],
       limiarBrilho: [50, 85],
       limiarContraste: 60,
       simetriaEsperada: false,
     },
     {
       nome: "Exame Normal",
-      descricao: "Sem alteracoes significativas detectadas",
+      descricao: "Sem alteracoes significativas detectadas (heurística de demonstração)",
       categoria: "normal",
       gravidade: "leve",
-      padroesTextura: ["textura_homogenea", "simetria_normal"],
       limiarBrilho: [40, 70],
       limiarContraste: 40,
       simetriaEsperada: true,
-    },
-  ],
-  "Tomografia Computorizada": [
-    {
-      nome: "Processo Infeccioso",
-      descricao: "Area de consolidacao com broncogramas aereos sugestiva de processo infeccioso",
-      categoria: "consolidacao",
-      gravidade: "moderado",
-      padroesTextura: ["consolidacao", "broncograma"],
-      limiarBrilho: [-200, 100],
-      limiarContraste: 50,
-      simetriaEsperada: false,
-    },
-    {
-      nome: "Massa Pulmonar",
-      descricao: "Massa pulmonar com densidade de partes moles a necessitar caracterizacao",
-      categoria: "massa",
-      gravidade: "severo",
-      padroesTextura: ["massa_tecido_mole", "irregular"],
-      limiarBrilho: [0, 80],
-      limiarContraste: 60,
-      simetriaEsperada: false,
-    },
-    {
-      nome: "Enfisema Pulmonar",
-      descricao: "Areas de baixa atenuacao pulmonar sugestivas de enfisema",
-      categoria: "anomalia_textura",
-      gravidade: "moderado",
-      padroesTextura: ["baixa_atenuacao", "bolhas"],
-      limiarBrilho: [-500, -200],
-      limiarContraste: 30,
-      simetriaEsperada: false,
-    },
-  ],
-  "Ecografia": [
-    {
-      nome: "Lesao Focal",
-      descricao: "Lesao focal ecogenica/hipoecogenica a necessitar caracterizacao",
-      categoria: "lesao",
-      gravidade: "moderado",
-      padroesTextura: ["ecogenicidade_alterada", "margem_definida"],
-      limiarBrilho: [30, 80],
-      limiarContraste: 45,
-      simetriaEsperada: false,
-    },
-    {
-      nome: "Cisto Simples",
-      descricao: "Estrutura anecogenica com reforco acustico posterior sugestiva de cisto simples",
-      categoria: "cisto",
-      gravidade: "leve",
-      padroesTextura: ["anecogenico", "reforco_posterior"],
-      limiarBrilho: [0, 20],
-      limiarContraste: 20,
-      simetriaEsperada: true,
-    },
-  ],
-  "Ressonancia Magnetica": [
-    {
-      nome: "Lesao Inflamatoria",
-      descricao: "Area de realce pelo gadolinio sugestiva de processo inflamatorio",
-      categoria: "lesao",
-      gravidade: "moderado",
-      padroesTextura: ["realce_pos_gadolinio", "edema"],
-      limiarBrilho: [100, 200],
-      limiarContraste: 55,
-      simetriaEsperada: false,
-    },
-    {
-      nome: "Alteracao Degenerativa",
-      descricao: "Alteracoes degenerativas com perda de sinal e irregularidade",
-      categoria: "fibrose",
-      gravidade: "leve",
-      padroesTextura: ["perda_sinal", "irregularidade"],
-      limiarBrilho: [50, 150],
-      limiarContraste: 35,
-      simetriaEsperada: true,
-    },
-  ],
-  "Mamografia": [
-    {
-      nome: "Nodulo Suspeito",
-      descricao: "Nodulo com margens espiculadas e microcalcificacoes associadas",
-      categoria: "nodulo",
-      gravidade: "severo",
-      padroesTextura: ["margem_espiculada", "microcalcificacao"],
-      limiarBrilho: [60, 100],
-      limiarContraste: 65,
-      simetriaEsperada: false,
-    },
-    {
-      nome: "Assimetria Focal",
-      descricao: "Assimetria focal de densidade a necessitar correlacao ecografica",
-      categoria: "assimetria",
-      gravidade: "moderado",
-      padroesTextura: ["assimetria_densidade", "distorcao"],
-      limiarBrilho: [40, 80],
-      limiarContraste: 40,
-      simetriaEsperada: false,
-    },
-    {
-      nome: "Calcificacoes Benignas",
-      descricao: "Calcificacoes grosseiras e dispersas de aspecto benigno",
-      categoria: "calcificacao",
-      gravidade: "leve",
-      padroesTextura: ["calcificacao_grosseira", "dispersa"],
-      limiarBrilho: [70, 100],
-      limiarContraste: 50,
-      simetriaEsperada: false,
     },
   ],
 };
@@ -236,156 +109,39 @@ const DIAGNOSTICOS_GENERICOS: Array<{
 }> = [
   {
     nome: "Alteracao de Textura",
-    descricao: "Anomalia na textura da imagem a necessitar correlacao clinica",
+    descricao: "Anomalia na textura a necessitar correlacao clinica (heurística de demonstração)",
     categoria: "anomalia_textura",
     gravidade: "leve",
   },
   {
     nome: "Padrao Normal",
-    descricao: "Padrao de imagem dentro dos parametros esperados",
+    descricao: "Padrao de imagem dentro dos parametros esperados (heurística de demonstração)",
     categoria: "normal",
     gravidade: "leve",
   },
 ];
 
-async function carregarModeloMobileNet() {
-  if (modeloPronto && modelo) return modelo;
-  if (carregandoModelo) {
-    return new Promise<void>((resolve) => {
-      filaEspera.push(() => resolve(undefined));
-    });
-  }
-
-  carregandoModelo = true;
-  try {
-    const tfjs = await import("@tensorflow/tfjs");
-    await tfjs.ready();
-    const mobilenet = await import("@tensorflow-models/mobilenet");
-
-    modelo = await mobilenet.load({ version: 2, alpha: 1.0 });
-    modeloPronto = true;
-    return modelo;
-  } catch (err) {
-    console.warn("MobileNet nao disponivel, modo CV apenas:", err);
-    modeloPronto = true;
-    modelo = null;
-    return null;
-  } finally {
-    carregandoModelo = false;
-    filaEspera.forEach((cb) => cb(undefined));
-    filaEspera = [];
-  }
-}
-
-function analisarHistograma(pixels: ImageData): number[] {
-  const { data } = pixels;
-  const total = data.length / 4;
-  const histograma = new Array(16).fill(0);
-
-  for (let i = 0; i < total; i++) {
-    const idx = i * 4;
-    const brilho = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
-    const bin = Math.min(Math.floor(brilho / 16), 15);
-    histograma[bin]++;
-  }
-
-  return histograma.map((v) => Math.round((v / total) * 10000) / 100);
-}
-
-function analisarSimetria(pixels: ImageData, largura: number, altura: number): number {
-  const metade = Math.floor(largura / 2);
-  let diferenca = 0;
-  let count = 0;
-
-  for (let y = 0; y < altura; y++) {
-    for (let x = 0; x < metade; x++) {
-      const idxEsq = (y * largura + x) * 4;
-      const idxDir = (y * largura + (largura - 1 - x)) * 4;
-      const pixelsData = pixels.data;
-
-      const brilhoEsq = (pixelsData[idxEsq] + pixelsData[idxEsq + 1] + pixelsData[idxEsq + 2]) / 3;
-      const brilhoDir = (pixelsData[idxDir] + pixelsData[idxDir + 1] + pixelsData[idxDir + 2]) / 3;
-
-      diferenca += Math.abs(brilhoEsq - brilhoDir);
-      count++;
-    }
-  }
-
-  const mediaDiferenca = count > 0 ? diferenca / count / 255 : 0;
-  return Math.round(Math.max(0, 100 - mediaDiferenca * 100));
-}
-
-function detectarAnomaliasTextura(
-  pixels: ImageData,
-  largura: number,
-  altura: number,
-): Array<{ x: number; y: number; intensidade: number }> {
-  const { data } = pixels;
-  const anomalias: Array<{ x: number; y: number; intensidade: number }> = [];
-  const gridSize = Math.max(4, Math.floor(Math.min(largura, altura) / 50));
-  const regiaoLarg = Math.floor(largura / gridSize);
-  const regiaoAlt = Math.floor(altura / gridSize);
-
-  const mediasRegiao: number[][] = [];
-  for (let gy = 0; gy < gridSize; gy++) {
-    mediasRegiao[gy] = [];
-    for (let gx = 0; gx < gridSize; gx++) {
-      let soma = 0;
-      let count = 0;
-      for (let y = gy * regiaoAlt; y < (gy + 1) * regiaoAlt && y < altura; y++) {
-        for (let x = gx * regiaoLarg; x < (gx + 1) * regiaoLarg && x < largura; x++) {
-          const idx = (y * largura + x) * 4;
-          soma += (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
-          count++;
-        }
-      }
-      mediasRegiao[gy][gx] = count > 0 ? soma / count : 128;
-    }
-  }
-
-  for (let gy = 1; gy < gridSize - 1; gy++) {
-    for (let gx = 1; gx < gridSize - 1; gx++) {
-      const mediaVizinhos =
-        (mediasRegiao[gy - 1][gx] + mediasRegiao[gy + 1][gx] +
-         mediasRegiao[gy][gx - 1] + mediasRegiao[gy][gx + 1]) / 4;
-
-      const desvio = Math.abs(mediasRegiao[gy][gx] - mediaVizinhos);
-
-      if (desvio > 20) {
-        anomalias.push({
-          x: (gx * regiaoLarg + regiaoLarg / 2) / largura,
-          y: (gy * regiaoAlt + regiaoAlt / 2) / altura,
-          intensidade: Math.round(Math.min(desvio / 1.28, 100)),
-        });
-      }
-    }
-  }
-
-  return anomalias;
-}
-
-function extrairMetadados(img: HTMLImageElement): MLMetadados {
+function extrairMetadadosLocal(img: HTMLImageElement): MetadadosCalculados {
   const canvas = document.createElement("canvas");
   canvas.width = img.width;
   canvas.height = img.height;
   const ctx = canvas.getContext("2d")!;
   ctx.drawImage(img, 0, 0);
   const imageData = ctx.getImageData(0, 0, img.width, img.height);
-
   const { data, width, height } = imageData;
-  const total = (width * height);
+  const total = width * height;
 
   let somaBrilho = 0;
   for (let i = 0; i < data.length; i += 4) {
     somaBrilho += (data[i] + data[i + 1] + data[i + 2]) / 3;
   }
-  const brilhoMedio = Math.round((somaBrilho / total / 255) * 100);
-
   const brilhoMedioFl = somaBrilho / total;
+  const brilhoMedio = Math.round((brilhoMedioFl / 255) * 100);
+
   let somaDiff = 0;
   for (let i = 0; i < data.length; i += 4) {
-    const brilho = (data[i] + data[i + 1] + data[i + 2]) / 3;
-    somaDiff += (brilho - brilhoMedioFl) ** 2;
+    const b = (data[i] + data[i + 1] + data[i + 2]) / 3;
+    somaDiff += (b - brilhoMedioFl) ** 2;
   }
   const desvio = Math.sqrt(somaDiff / total);
   const contraste = Math.round(Math.min((desvio / 128) * 100, 100));
@@ -395,42 +151,107 @@ function extrairMetadados(img: HTMLImageElement): MLMetadados {
   for (let y = 1; y < height - 1; y++) {
     for (let x = 1; x < width - 1; x++) {
       const idx = (y * width + x) * 4;
-      const idxCima = ((y - 1) * width + x) * 4;
-      const idxBaixo = ((y + 1) * width + x) * 4;
-      const idxEsq = (y * width + (x - 1)) * 4;
-      const idxDir = (y * width + (x + 1)) * 4;
-
       const laplacian = Math.abs(
-        data[idx] * 4 - data[idxCima] - data[idxBaixo] - data[idxEsq] - data[idxDir]
+        data[idx] * 4 - data[idx - width * 4] - data[idx + width * 4] - data[idx - 4] - data[idx + 4]
       );
       somaNitidez += laplacian / 255;
       countNitidez++;
     }
   }
-  const nitidez = countNitidez > 0
-    ? Math.round(Math.min((somaNitidez / countNitidez) * 100, 100))
-    : 0;
+  const nitidez = countNitidez ? Math.round(Math.min((somaNitidez / countNitidez) * 100, 100)) : 0;
 
-  const histograma = analisarHistograma(imageData);
-  const razaoAspecto = Math.round((width / height) * 100) / 100;
+  const histograma = new Array(16).fill(0);
+  for (let i = 0; i < data.length; i += 4) {
+    const b = (data[i] + data[i + 1] + data[i + 2]) / 3;
+    histograma[Math.min(Math.floor(b / 16), 15)]++;
+  }
 
   return {
-    dimensoes: { largura: width, altura: height },
     brilhoMedio,
     nitidez,
     contraste,
-    histograma,
-    razaoAspecto,
+    histograma: histograma.map((v) => Math.round((v / total) * 10000) / 100),
+    razaoAspecto: Math.round((width / height) * 100) / 100,
   };
 }
 
+function analisarSimetriaLocal(img: HTMLImageElement): number {
+  const c = document.createElement("canvas");
+  c.width = img.width;
+  c.height = img.height;
+  const ctx = c.getContext("2d")!;
+  ctx.drawImage(img, 0, 0);
+  const { data } = ctx.getImageData(0, 0, img.width, img.height);
+  const largura = img.width;
+  const altura = img.height;
+  const metade = Math.floor(largura / 2);
+  let diff = 0;
+  let count = 0;
+  for (let y = 0; y < altura; y++) {
+    for (let x = 0; x < metade; x++) {
+      const e = (y * largura + x) * 4;
+      const d = (y * largura + (largura - 1 - x)) * 4;
+      const be = (data[e] + data[e + 1] + data[e + 2]) / 3;
+      const bd = (data[d] + data[d + 1] + data[d + 2]) / 3;
+      diff += Math.abs(be - bd);
+      count++;
+    }
+  }
+  const media = count ? diff / count / 255 : 0;
+  return Math.round(Math.max(0, 100 - media * 100));
+}
+
+function detectarAnomaliasTexturaLocal(img: HTMLImageElement): Array<{ x: number; y: number; intensidade: number }> {
+  const c = document.createElement("canvas");
+  c.width = img.width;
+  c.height = img.height;
+  const ctx = c.getContext("2d")!;
+  ctx.drawImage(img, 0, 0);
+  const { data, width, height } = ctx.getImageData(0, 0, img.width, img.height);
+  const grid = Math.max(4, Math.floor(Math.min(width, height) / 50));
+  const rw = Math.floor(width / grid);
+  const rh = Math.floor(height / grid);
+  const medias: number[][] = [];
+  for (let gy = 0; gy < grid; gy++) {
+    medias[gy] = [];
+    for (let gx = 0; gx < grid; gx++) {
+      let soma = 0;
+      let cnt = 0;
+      for (let y = gy * rh; y < (gy + 1) * rh && y < height; y++) {
+        for (let x = gx * rw; x < (gx + 1) * rw && x < width; x++) {
+          const idx = (y * width + x) * 4;
+          soma += (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+          cnt++;
+        }
+      }
+      medias[gy][gx] = cnt ? soma / cnt : 128;
+    }
+  }
+  const anomalias: Array<{ x: number; y: number; intensidade: number }> = [];
+  for (let gy = 1; gy < grid - 1; gy++) {
+    for (let gx = 1; gx < grid - 1; gx++) {
+      const mediaViz =
+        (medias[gy - 1][gx] + medias[gy + 1][gx] + medias[gy][gx - 1] + medias[gy][gx + 1]) / 4;
+      const desvio = Math.abs(medias[gy][gx] - mediaViz);
+      if (desvio > 20) {
+        anomalias.push({
+          x: (gx * rw + rw / 2) / width,
+          y: (gy * rh + rh / 2) / height,
+          intensidade: Math.round(Math.min(desvio / 1.28, 100)),
+        });
+      }
+    }
+  }
+  return anomalias;
+}
+
 function obterModalidadePeloNome(nome: string): string {
-  const nomeLower = nome.toLowerCase();
-  if (nomeLower.includes("raio") || nomeLower.includes("rx") || nomeLower.includes("x-ray")) return "Raio-X";
-  if (nomeLower.includes("tomografia") || nomeLower.includes("tc") || nomeLower.includes("ct")) return "Tomografia Computorizada";
-  if (nomeLower.includes("ressonancia") || nomeLower.includes("rm") || nomeLower.includes("mri")) return "Ressonancia Magnetica";
-  if (nomeLower.includes("ecografia") || nomeLower.includes("eco") || nomeLower.includes("ultras")) return "Ecografia";
-  if (nomeLower.includes("mamografia") || nomeLower.includes("mamo")) return "Mamografia";
+  const n = nome.toLowerCase();
+  if (n.includes("raio") || n.includes("rx") || n.includes("x-ray")) return "Raio-X";
+  if (n.includes("tomografia") || n.includes("tc") || n.includes("ct")) return "Tomografia Computorizada";
+  if (n.includes("ressonancia") || n.includes("rm") || n.includes("mri")) return "Ressonancia Magnetica";
+  if (n.includes("ecografia") || n.includes("eco") || n.includes("ultras")) return "Ecografia";
+  if (n.includes("mamografia") || n.includes("mamo")) return "Mamografia";
   return "Raio-X";
 }
 
@@ -454,114 +275,76 @@ function carregarImagem(url: string): Promise<HTMLImageElement> {
   });
 }
 
-function gerarDiagnostico(
+function gerarDiagnosticoFallback(
   imagemId: number,
   modalidade: string,
-  metadados: MLMetadados,
-  anomaliasTextura: Array<{ x: number; y: number; intensidade: number }>,
+  metadados: MetadadosCalculados,
+  anomalias: Array<{ x: number; y: number; intensidade: number }>,
   simetria: number,
-  classificacoesMobileNet: Array<{ className: string; probability: number }> | null,
 ): MLDiagnostico {
-  const diagnosticosPossiveis = DIAGNOSTICOS_POR_MODALIDADE[modalidade] || DIAGNOSTICOS_GENERICOS;
+  const possiveis = DIAGNOSTICOS_POR_MODALIDADE[modalidade] || DIAGNOSTICOS_GENERICOS;
   const achados: MLAchado[] = [];
   const regioesInteresse: MLRegiao[] = [];
   let diagnosticoPrincipal: string | null = null;
   let confiancaDiagnostico = 0;
   const recomendacoes: string[] = [];
 
-  for (const diag of diagnosticosPossiveis) {
+  for (const diag of possiveis) {
     let score = 50;
+    const [min, max] = diag.limiarBrilho;
+    if (metadados.brilhoMedio >= min && metadados.brilhoMedio <= max) score += 10;
+    if (metadados.contraste >= diag.limiarContraste) score += 10;
+    if (diag.simetriaEsperada && simetria > 70) score += 15;
+    else if (!diag.simetriaEsperada && simetria < 70) score += 15;
+    if (anomalias.length > 0 && diag.categoria !== "normal") score += Math.min(anomalias.length * 5, 20);
+    else if (anomalias.length === 0 && diag.categoria === "normal") score += 20;
 
-    const [brilhoMin, brilhoMax] = diag.limiarBrilho;
-    if (metadados.brilhoMedio >= brilhoMin && metadados.brilhoMedio <= brilhoMax) {
-      score += 10;
-    }
-
-    if (metadados.contraste >= diag.limiarContraste) {
-      score += 10;
-    }
-
-    if ("simetriaEsperada" in diag) {
-      const d = diag as typeof diagnosticosPossiveis[number] & { simetriaEsperada: boolean };
-      if (d.simetriaEsperada && simetria > 70) {
-        score += 15;
-      } else if (!d.simetriaEsperada && simetria < 70) {
-        score += 15;
-      }
-    }
-
-    if (anomaliasTextura.length > 0 && diag.categoria !== "normal") {
-      score += Math.min(anomaliasTextura.length * 5, 20);
-    } else if (anomaliasTextura.length === 0 && diag.categoria === "normal") {
-      score += 20;
-    }
-
-    const histogramaSpread = Math.max(...metadados.histograma) - Math.min(...metadados.histograma);
-    if (histogramaSpread > 30 && diag.categoria !== "normal") {
-      score += 10;
-    } else if (histogramaSpread <= 30 && diag.categoria === "normal") {
-      score += 10;
-    }
-
-    if (classificacoesMobileNet && classificacoesMobileNet.length > 0) {
-      const termosMedicos = ["X-ray", "CT", "MRI", "ultrasound", "mammogram", "lung", "heart", "bone", "chest", "abdomen", "head", "neck"];
-      const matchMedico = classificacoesMobileNet.some((c) =>
-        termosMedicos.some((t) => c.className.toLowerCase().includes(t))
-      );
-      if (matchMedico) score += 5;
-    }
-
-    const confiancaFinal = Math.min(score, 98);
-
-    if (confiancaFinal > 20) {
+    const confianca = Math.min(score, 98);
+    if (confianca > 20) {
       achados.push({
         tipo: diag.nome,
         descricao: diag.descricao,
         gravidade: diag.gravidade,
-        confianca: confiancaFinal,
+        confianca,
         categoria: diag.categoria,
-        localizacao: anomaliasTextura.length > 0
-          ? `Regiao com anomalia de textura (centro: ${(anomaliasTextura[0].x * 100).toFixed(0)}%, ${(anomaliasTextura[0].y * 100).toFixed(0)}%)`
+        localizacao: anomalias.length > 0
+          ? `Regiao com anomalia (centro: ${(anomalias[0].x * 100).toFixed(0)}%, ${(anomalias[0].y * 100).toFixed(0)}%)`
           : "Difuso / Geral",
       });
     }
-
-    if (confiancaFinal > confiancaDiagnostico && diag.categoria !== "normal") {
-      confiancaDiagnostico = confiancaFinal;
+    if (confianca > confiancaDiagnostico && diag.categoria !== "normal") {
+      confiancaDiagnostico = confianca;
       diagnosticoPrincipal = diag.nome;
     }
   }
 
-  for (const anom of anomaliasTextura) {
+  for (const a of anomalias) {
     regioesInteresse.push({
-      x: anom.x,
-      y: anom.y,
+      x: a.x,
+      y: a.y,
       largura: 0.1,
       altura: 0.1,
       tipo: "anomalia_textura",
-      confianca: Math.min(anom.intensidade, 95),
+      confianca: Math.min(a.intensidade, 95),
     });
   }
 
   if (achados.some((a) => a.gravidade === "severo")) {
     recomendacoes.push("Reavaliacao clinica urgente recomendada");
-    recomendacoes.push("Correlacionar com historia clinica e exame fisico");
   }
   if (achados.some((a) => a.gravidade === "moderado")) {
-    recomendacoes.push("Sugere-se correlacao com exames anteriores");
     recomendacoes.push("Avaliacao por medico especialista recomendada");
-  }
-  if (achados.some((a) => a.gravidade === "leve" && a.categoria !== "normal")) {
-    recomendacoes.push("Controlo de rotina sugerido");
   }
   if (achados.every((a) => a.categoria === "normal")) {
     recomendacoes.push("Exame dentro dos parametros de normalidade");
   }
-  recomendacoes.push("Esta e uma analise assistida por IA. O diagnostico definitivo deve ser feito por medico especialista.");
+  recomendacoes.push(
+    "⚠️ Análise LOCAL de demonstração (heurística de brilho/contraste). NÃO é um modelo médico validado. O diagnóstico definitivo deve ser feito por médico especialista."
+  );
 
   const principal = achados.find((a) => a.confianca > 60);
   const resumo = principal
-    ? `${principal.tipo} (confianca: ${principal.confianca}%) - ${principal.descricao}.${achados.length > 1 ? ` Mais ${achados.length - 1} achado(s) adicional(is).` : ""}`
+    ? `${principal.tipo} (confianca: ${principal.confianca}%) - ${principal.descricao}.${achados.length > 1 ? ` Mais ${achados.length - 1} achado(s).` : ""}`
     : "Nenhuma alteracao significativa detectada automaticamente.";
 
   return {
@@ -572,49 +355,91 @@ function gerarDiagnostico(
     diagnosticoPrincipal,
     confiancaDiagnostico,
     recomendacoes,
-    metadados,
+    metadados: {
+      dimensoes: { largura: 0, altura: 0 },
+      brilhoMedio: metadados.brilhoMedio,
+      nitidez: metadados.nitidez,
+      contraste: metadados.contraste,
+      histograma: metadados.histograma,
+      razaoAspecto: metadados.razaoAspecto,
+    },
     regioesInteresse,
     processadoEm: new Date().toISOString(),
   };
 }
 
+// =========================================================================
+// Chamada ao backend real (TorchXRayVision)
+// =========================================================================
+async function chamarBackendIA(
+  imagemId: number,
+  imageUrl: string,
+  nomeTipoExame?: string,
+): Promise<MLDiagnostico | null> {
+  try {
+    const img = await carregarImagem(imageUrl);
+    const blob = await fetch(img.src).then((r) => r.blob());
+    const modalidade = obterModalidadePeloNome(nomeTipoExame || "");
+
+    const form = new FormData();
+    form.append("file", blob, "imagem.png");
+    form.append("modalidade", modalidade);
+
+    const res = await fetch("/api/ia/analisar", {
+      method: "POST",
+      body: form,
+    });
+
+    if (!res.ok) {
+      // Backend não disponível -> usa fallback
+      console.warn("Backend de IA indisponível, a usar análise local:", res.status);
+      return null;
+    }
+
+    const dados = await res.json();
+    return {
+      ...dados,
+      imagemId,
+      modalidade: dados.modalidade || modalidade,
+      achados: dados.achados ?? [],
+      recomendacoes: dados.recomendacoes ?? [],
+      metadados: dados.metadados ?? { dimensoes: { largura: 0, altura: 0 }, brilhoMedio: 0, nitidez: 0, contraste: 0, histograma: [], razaoAspecto: 0 },
+      regioesInteresse: dados.regioesInteresse ?? [],
+    } as MLDiagnostico;
+  } catch (err) {
+    console.warn("Falha ao chamar backend de IA, a usar análise local:", err);
+    return null;
+  }
+}
+
+// =========================================================================
+// API pública
+// =========================================================================
 export async function diagnosticarImagem(
   imagemId: number,
   imageUrl: string,
   nomeTipoExame?: string,
 ): Promise<MLDiagnostico> {
-  const img = await carregarImagem(imageUrl);
-  const metadados = extrairMetadados(img);
-
-  const canvas = document.createElement("canvas");
-  canvas.width = img.width;
-  canvas.height = img.height;
-  const ctx = canvas.getContext("2d")!;
-  ctx.drawImage(img, 0, 0);
-  const imageData = ctx.getImageData(0, 0, img.width, img.height);
-
-  const modalidade = obterModalidadePeloNome(nomeTipoExame || "");
-  const simetria = analisarSimetria(imageData, img.width, img.height);
-  const anomalias = detectarAnomaliasTextura(imageData, img.width, img.height);
-
-  let classificacoes: Array<{ className: string; probability: number }> | null = null;
-  try {
-    const net = await carregarModeloMobileNet();
-    if (net) {
-      classificacoes = await net.classify(img);
-    }
-  } catch {
-    // Continuar sem MobileNet
+  // 1) Tenta o backend real primeiro
+  const backendResult = await chamarBackendIA(imagemId, imageUrl, nomeTipoExame);
+  if (backendResult) {
+    return backendResult;
   }
 
-  return gerarDiagnostico(imagemId, modalidade, metadados, anomalias, simetria, classificacoes);
+  // 2) Fallback local (heurística)
+  const img = await carregarImagem(imageUrl);
+  const metadados = extrairMetadadosLocal(img);
+  const modalidade = obterModalidadePeloNome(nomeTipoExame || "");
+  const simetria = analisarSimetriaLocal(img);
+  const anomalias = detectarAnomaliasTexturaLocal(img);
+
+  return gerarDiagnosticoFallback(imagemId, modalidade, metadados, anomalias, simetria);
 }
 
 export async function diagnosticarMultiplasImagens(
   imagens: Array<{ id: number; path: string; tipoExameNome?: string }>
 ): Promise<MLDiagnostico[]> {
   const diagnosticos: MLDiagnostico[] = [];
-
   for (const img of imagens) {
     try {
       const resultado = await diagnosticarImagem(img.id, img.path, img.tipoExameNome);
@@ -623,7 +448,5 @@ export async function diagnosticarMultiplasImagens(
       console.warn(`Erro ao diagnosticar imagem ${img.id}:`, err);
     }
   }
-
   return diagnosticos;
 }
-
