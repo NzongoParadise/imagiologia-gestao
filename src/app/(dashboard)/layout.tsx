@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { GestorChamadas } from "@/features/chamadas-voz/components/gestor-chamadas";
 import { Toaster } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -101,6 +102,9 @@ export default function DashboardLayout({
       </div>
 
       <Toaster position="top-right" richColors closeButton />
+
+      {/* Gestor de chamadas de voz (overlays + sinalização) */}
+      <GestorChamadas />
     </div>
   );
 }

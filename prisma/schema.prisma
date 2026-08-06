@@ -28,6 +28,9 @@ model Utilizador {
   participacoes     ConversaParticipante[]
   mensagens         Mensagem[]
   backups           Backup[]
+  chamadasFeitas    ChamadaVoz[]           @relation("ChamadasFeitas")
+  chamadasRecebidas ChamadaVoz[]           @relation("ChamadasRecebidas")
+  sinaisVoip        SinalVoip[]
 }
 
 model Paciente {
@@ -266,6 +269,7 @@ model Conversa {
   criadaPor     Utilizador?            @relation("ConversasCriadas", fields: [criadaPorId], references: [id])
   participantes ConversaParticipante[]
   mensagens     Mensagem[]
+  chamadasVoz   ChamadaVoz[]
 
   @@index([criadaPorId])
   @@index([updatedAt])
@@ -317,4 +321,47 @@ model Backup {
   @@index([criadoEm])
   @@index([criadoPorId])
   @@map("backups")
+}
+
+// ---------------------------------------------------------------------------
+// Chamadas de Voz Internas (VoIP)
+// ---------------------------------------------------------------------------
+
+model ChamadaVoz {
+  id           Int         @id @default(autoincrement())
+  chamadorId   Int         @map("chamador_id")
+  receptorId   Int         @map("receptor_id")
+  conversaId   Int?        @map("conversa_id")
+  estado       String      @default("A_CHAMAR") // A_CHAMAR | EM_CURSO | TERMINADA | REJEITADA | NAO_ATENDIDA | CANCELADA
+  iniciadoEm   DateTime    @default(now()) @map("iniciado_em")
+  aceiteEm     DateTime?   @map("aceite_em")
+  terminadoEm  DateTime?   @map("terminado_em")
+  duracaoSeg   Int         @default(0) @map("duracao_seg")
+  motivoFim    String?     @map("motivo_fim")
+
+  chamador  Utilizador  @relation("ChamadasFeitas", fields: [chamadorId], references: [id])
+  receptor  Utilizador  @relation("ChamadasRecebidas", fields: [receptorId], references: [id])
+  conversa  Conversa?   @relation(fields: [conversaId], references: [id], onDelete: SetNull)
+  sinais    SinalVoip[]
+
+  @@index([chamadorId])
+  @@index([receptorId])
+  @@index([estado])
+  @@index([iniciadoEm])
+  @@map("chamadas_voz")
+}
+
+model SinalVoip {
+  id            Int      @id @default(autoincrement())
+  chamadaId     Int      @map("chamada_id")
+  utilizadorId  Int      @map("utilizador_id")
+  tipo          String   // offer | answer | ice
+  conteudo      String   // JSON com SDP ou ICE candidate
+  createdAt     DateTime @default(now()) @map("criado_em")
+
+  chamada   ChamadaVoz @relation(fields: [chamadaId], references: [id], onDelete: Cascade)
+  utilizador Utilizador @relation(fields: [utilizadorId], references: [id])
+
+  @@index([chamadaId, createdAt])
+  @@map("sinais_voip")
 }

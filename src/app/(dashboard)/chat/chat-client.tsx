@@ -24,6 +24,7 @@ import {
   enviarMensagem,
   marcarConversaLida,
 } from "@/features/chat/actions/chat-actions";
+import { BotaoChamada } from "@/features/chamadas-voz/components/botao-chamada";
 
 interface Utilizador {
   id: number;
@@ -361,6 +362,17 @@ const carregarConversas = useCallback(async () => {
                     <CheckCheck className="h-3 w-3 text-primary" />
                     {mensagens.length} msg
                   </span>
+                )}
+                {participantesNomes(conversaSelecionada).length === 1 && (
+                  <BotaoChamada
+                    receptorId={
+                      conversaSelecionada.participantes.find(
+                        (p) => p.utilizadorId !== currentUserId
+                      )?.utilizadorId || 0
+                    }
+                    conversaId={conversaSelecionada.id}
+                    tamanho="sm"
+                  />
                 )}
               </div>
 

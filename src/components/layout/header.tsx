@@ -33,6 +33,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { LembretesRapidos } from "@/features/anotacoes/components/lembretes-rapidos";
+import { BotaoChamadaHeader } from "@/features/chamadas-voz/components/botao-chamada-header";
 
 interface Notificacao {
   id: number;
@@ -588,6 +589,9 @@ Ver todos os resultados para "{searchTerm}"
         >
           {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
+
+        {/* Chamada de Voz */}
+        <BotaoChamadaHeader />
 
         {/* Chat - Messenger Dropdown */}
         <div ref={chatRef} className="relative">
