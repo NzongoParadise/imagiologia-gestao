@@ -19,4 +19,4 @@
 - [x] 12. Atualizar `ai.service.ts` para usar `diagnosticarImagemServer` (bytes da BD) em vez de APIs de browser
 - [x] 13. Mapear `regioesInteresse` -> `regioes` na normalização para o HeatmapViewer
 - [x] 14. Validação com `npm run build` (TypeScript + Next.js compilam sem erros)
-- [ ] 15. Commit e push
+- [x] 15. Commit e push (branch `blackboxai/fix-diagnostico-ia`)
