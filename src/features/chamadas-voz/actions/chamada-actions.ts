@@ -120,7 +120,16 @@ export async function obterChamadasPendentes() {
 }
 
 /**
- * Obtém a chamada ativa (A_CHAMAR ou EM_CURSO) do utilizador atual.
+ * Obtém a chamada ativa do utilizador atual.
+ *
+ * NÃO devolve chamadas A_CHAMAR em que o utilizador é apenas RECEPTOR:
+ * essas devem ser tratadas como "chamadas recebidas" (ver `obterChamadasPendentes`),
+ * estilo WhatsApp/Messenger. Assim, o modal de chamada recebida (botão Atender)
+ * nunca é sobreposto pelo modal de chamada ativa (botão Terminar).
+ *
+ * Devolve apenas:
+ *   - Chamadas A_CHAMAR em que o utilizador é o CHAMADOR (a aguardar resposta);
+ *   - Chamadas EM_CURSO em que o utilizador participa (chamador ou receptor).
  */
 export async function obterChamadaAtiva() {
   await autorizar("chat");
@@ -131,10 +140,14 @@ export async function obterChamadaAtiva() {
   const chamada = await prisma.chamadaVoz.findFirst({
     where: {
       OR: [
-        { chamadorId: userId },
-        { receptorId: userId },
+        // Sou o chamador de uma chamada a aguardar resposta
+        { chamadorId: userId, estado: "A_CHAMAR" },
+        // Estou a participar numa chamada em curso
+        {
+          estado: "EM_CURSO",
+          OR: [{ chamadorId: userId }, { receptorId: userId }],
+        },
       ],
-      estado: { in: ["A_CHAMAR", "EM_CURSO"] },
     },
     orderBy: { iniciadoEm: "desc" },
     include: {

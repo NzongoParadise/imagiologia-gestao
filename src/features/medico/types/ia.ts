@@ -26,6 +26,15 @@ export interface ResultadoAnaliseIA {
   differential?: DiagnosticoDiferencialItem[];
   heatmap?: string;
   preLaudo?: string;
+  /** Regiões de interesse exibidas no HeatmapViewer */
+  regioes?: Array<{
+    x: number;
+    y: number;
+    largura: number;
+    altura: number;
+    tipo: string;
+    confianca: number;
+  }>;
 }
 
 export interface AnaliseIA {

@@ -37,6 +37,8 @@ const ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun1.l.google.com:19302" },
 ];
 
+const ESTADOS_TERMINADAS = ["TERMINADA", "REJEITADA", "CANCELADA", "NAO_ATENDIDA"];
+
 export function useChamadaVoz({
   currentUserId,
 }: UseChamadaVozOptions): UseChamadaVozReturn {
@@ -53,7 +55,7 @@ export function useChamadaVoz({
   const chamadaAtivaRef = useRef<ChamadaDTO | null>(null);
   const alertaSonoroRef = useRef<HTMLAudioElement | null>(null);
 
-  // Manter referência da chamada ativa
+  // Manter referência da chamada ativa em curso
   useEffect(() => {
     chamadaAtivaRef.current = chamadaAtiva;
   }, [chamadaAtiva]);
@@ -191,66 +193,79 @@ export function useChamadaVoz({
     }
   }, []);
 
-  // Polling de chamadas pendentes (chamadas recebidas)
-  useEffect(() => {
+  // -------------------------------------------------------------------------
+  // Sincronização UNIFICADA (lógica estilo WhatsApp/Messenger)
+  //
+  // Uma única função decide o estado da chamada, garantindo invariantes:
+  //   - Chamada RECEBIDA (A_CHAMAR em que sou o receptor):
+  //       -> apenas `chamadaEntrada` definido; `chamadaAtiva`=null; `emCurso`=false
+  //   - Chamada que INICIEI (A_CHAMAR como chamador) ou EM_CURSO:
+  //       -> apenas `chamadaAtiva` definido; `emCurso`=true; `chamadaEntrada`=null
+  // Nunca os dois ao mesmo tempo, evitando sobreposição de modais.
+  // -------------------------------------------------------------------------
+  const sincronizarEstado = useCallback(async () => {
     if (!currentUserId) return;
 
-    let intervalo: ReturnType<typeof setInterval> | null = null;
+    try {
+      // 1. Chamada ativa (A_CHAMAR ou EM_CURSO) onde participo
+      const ativa = await obterChamadaAtiva();
 
-    const verificarChamadas = async () => {
-      if (chamadaEmCursoRef.current) return;
+      // 2. Sem chamada ativa -> limpar tudo e verificar chamadas recebidas
+      if (!ativa) {
+        if (chamadaEmCursoRef.current || chamadaAtivaRef.current) {
+          finalizarPeer();
+        }
+        chamadaEmCursoRef.current = false;
+        setEmCurso(false);
+        setChamadaAtiva(null);
+        chamadaAtivaRef.current = null;
 
-      try {
         const pendentes = await obterChamadasPendentes();
-        if (pendentes.length > 0) {
-          setChamadaEntrada(pendentes[0]);
-        } else {
-          setChamadaEntrada((prev) => (prev ? null : prev));
-        }
-      } catch {
-        // Silencioso
+        setChamadaEntrada(pendentes[0] || null);
+        return;
       }
-    };
 
-    verificarChamadas();
-    intervalo = setInterval(verificarChamadas, 5000);
-    return () => {
-      if (intervalo) clearInterval(intervalo);
-    };
-  }, [currentUserId]);
-
-  // Polling de estado da chamada quando existe chamada ativa
-  useEffect(() => {
-    if (!currentUserId) return;
-
-    let intervalo: ReturnType<typeof setInterval> | null = null;
-
-    const verificarEstado = async () => {
-      try {
-        const ativa = await obterChamadaAtiva();
-
-        if (!ativa) {
-          // Chamada terminou remotamente
-          if (chamadaAtivaRef.current) {
-            finalizarPeer();
-            setChamadaAtiva(null);
-            chamadaEmCursoRef.current = false;
-          }
-          return;
+      // 3. Chamada TERMINADA remotamente
+      if (ESTADOS_TERMINADAS.includes(ativa.estado)) {
+        if (chamadaEmCursoRef.current || chamadaAtivaRef.current) {
+          finalizarPeer();
         }
+        chamadaEmCursoRef.current = false;
+        setEmCurso(false);
+        setChamadaAtiva(null);
+        chamadaAtivaRef.current = null;
+        setChamadaEntrada(null);
+        return;
+      }
 
-        // Chamada ativa (A_CHAMAR ou EM_CURSO) - configurar peer
-        if (
-          (ativa.estado === "A_CHAMAR" || ativa.estado === "EM_CURSO") &&
-          !chamadaEmCursoRef.current &&
-          !emCurso
-        ) {
+      // 4. SOU O RECEPTOR de uma chamada A_CHAMAR -> modal de recebida
+      if (ativa.estado === "A_CHAMAR" && ativa.receptorId === currentUserId) {
+        // Limpar qualquer estado de chamada ativa residual
+        if (chamadaEmCursoRef.current || chamadaAtivaRef.current) {
+          finalizarPeer();
+        }
+        chamadaEmCursoRef.current = false;
+        setEmCurso(false);
+        setChamadaAtiva(null);
+        chamadaAtivaRef.current = null;
+        setChamadaEntrada(ativa);
+        return;
+      }
+
+      // 5. SOU O CHAMADOR de uma A_CHAMAR, OU a chamada está EM_CURSO
+      const souChamador = ativa.estado === "A_CHAMAR" && ativa.chamadorId === currentUserId;
+      if (souChamador || ativa.estado === "EM_CURSO") {
+        // Garantir que o modal de recebida está fechado
+        setChamadaEntrada(null);
+
+        if (!chamadaEmCursoRef.current) {
           chamadaEmCursoRef.current = true;
           setEmCurso(true);
           const peer = await configurarPeer(true);
 
-          // Se fui o chamador, criar offer
-          if (ativa.chamadorId === currentUserId) {
+          // Se sou chamador, criar e enviar a offer
+          if (souChamador) {
+            ultimoSinalIdRef.current = 0;
             const offer = await peer.createOffer();
             await peer.setLocalDescription(offer);
             await enviarSinalVoip({
@@ -264,29 +279,34 @@ export function useChamadaVoz({
           chamadaAtivaRef.current = ativa;
         }
 
-        // Processar sinais
+        // Processar sinais WebRTC quando a chamada está em curso
         if (ativa.estado === "EM_CURSO" && chamadaEmCursoRef.current) {
           await processarSinais(ativa);
         }
-
-        // Chamada terminou
-        const terminou = ["TERMINADA", "REJEITADA", "CANCELADA", "NAO_ATENDIDA"];
-        if (terminou.includes(ativa.estado) && chamadaEmCursoRef.current) {
-          finalizarPeer();
-          setChamadaAtiva(null);
-          chamadaEmCursoRef.current = false;
-        }
-      } catch {
-        // Silencioso
       }
-    };
+    } catch {
+      // Silencioso
+    }
+  }, [currentUserId, configurarPeer, processarSinais, finalizarPeer]);
 
-    verificarEstado();
-    intervalo = setInterval(verificarEstado, 3000);
+// Polling único e unificado
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    // Primeira verificação (adiada para evitar setState síncrono no effect)
+    const primeiro = setTimeout(() => {
+      void sincronizarEstado();
+    }, 0);
+
+    const intervalo = setInterval(() => {
+      void sincronizarEstado();
+    }, 3000);
+
     return () => {
-      if (intervalo) clearInterval(intervalo);
+      clearTimeout(primeiro);
+      clearInterval(intervalo);
     };
-  }, [currentUserId, configurarPeer, processarSinais, finalizarPeer, emCurso]);
+  }, [currentUserId, sincronizarEstado]);
 
   const iniciar = useCallback(
     async (receptorId: number, conversaId?: number) => {
@@ -302,6 +322,7 @@ export function useChamadaVoz({
       // Reset da sinalização para a nova chamada
       ultimoSinalIdRef.current = 0;
 
+      setChamadaEntrada(null);
       setChamadaAtiva(chamada);
       chamadaAtivaRef.current = chamada;
       chamadaEmCursoRef.current = true;
@@ -348,6 +369,7 @@ export function useChamadaVoz({
     await terminarChamada(chamadaAtiva.id).catch(() => {});
     finalizarPeer();
     setChamadaAtiva(null);
+    chamadaAtivaRef.current = null;
     chamadaEmCursoRef.current = false;
   }, [chamadaAtiva, finalizarPeer]);
 
@@ -356,6 +378,7 @@ export function useChamadaVoz({
     await cancelarChamada(chamadaAtiva.id).catch(() => {});
     finalizarPeer();
     setChamadaAtiva(null);
+    chamadaAtivaRef.current = null;
     chamadaEmCursoRef.current = false;
   }, [chamadaAtiva, finalizarPeer]);
 

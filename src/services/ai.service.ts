@@ -13,7 +13,7 @@
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { diagnosticarImagem } from "@/features/imagens/services/ml-service";
+import { diagnosticarImagemServer } from "@/features/imagens/services/ml-service";
 import type { MLAchado } from "@/features/imagens/types";
 import type { AnaliseIA, ResultadoAnaliseIA, AchadoIA } from "@/features/medico/types/ia";
 
@@ -29,6 +29,14 @@ export function normalizarResultadoIA(
     resumo: string;
     recomendacoes?: string[];
     processadoEm?: string;
+    regioesInteresse?: Array<{
+      x: number;
+      y: number;
+      largura: number;
+      altura: number;
+      tipo: string;
+      confianca: number;
+    }>;
   }
 ): ResultadoAnaliseIA {
   const achados: AchadoIA[] = (resultado.achados || []).map((a) => ({
@@ -38,6 +46,17 @@ export function normalizarResultadoIA(
     descricao: a.descricao,
   }));
 
+  // Mapeia as regiões de interesse (regioesInteresse) para o formato usado
+  // pelo HeatmapViewer (campo `regioes`), para que sejam exibidas na imagem.
+  const regioes = (resultado.regioesInteresse || []).map((r) => ({
+    x: r.x,
+    y: r.y,
+    largura: r.largura,
+    altura: r.altura,
+    tipo: r.tipo,
+    confianca: r.confianca,
+  }));
+
   return {
     diagnostico: resultado.diagnosticoPrincipal || "Sem alterações significativas",
     confidence: resultado.confiancaDiagnostico ?? 0,
@@ -45,6 +64,7 @@ export function normalizarResultadoIA(
     summary: resultado.resumo || "",
     model: "TorchXRayVision",
     preLaudo: gerarPreLaudo(resultado),
+    regioes,
   };
 }
 
@@ -92,23 +112,28 @@ export function gerarPreLaudo(resultado: {
 /**
  * Executa a análise de IA sobre uma imagem de um exame e persiste o resultado.
  * A autorização é feita pela server action que invoca esta função.
+ *
+ * NOTA: esta função corre em Node.js (server). Usa diagnóstico server-safe
+ * (`diagnosticarImagemServer`) com os bytes da imagem, em vez de APIs de
+ * browser (canvas/Image) que não existem no servidor.
  */
 export async function analisarImagemComIA(
   exameId: number,
-  imagem: { id: number; path: string },
+  imagem: { id: number; path: string; dados?: Buffer | null },
   utilizadorId: number | null,
   nomeTipoExame?: string
 ): Promise<AnaliseIA> {
   const inicio = Date.now();
 
-  // 1. Invoca o motor de IA (usa o backend real se disponível, senão fallback local)
-  const resultado = await diagnosticarImagem(imagem.id, imagem.path, nomeTipoExame);
+  // 1. Invoca o motor de IA direto com os bytes da imagem (server-safe)
+  const bytes = imagem.dados ?? Buffer.from([]);
+  const resultado = await diagnosticarImagemServer(imagem.id, bytes, nomeTipoExame);
 
   // 2. Normaliza para o formato persistido
   const normalizado = normalizarResultadoIA({
     diagnosticoPrincipal: resultado.diagnosticoPrincipal,
     confiancaDiagnostico: resultado.confiancaDiagnostico,
-achados: (resultado.achados || []).map((a: MLAchado) => ({
+    achados: (resultado.achados || []).map((a: MLAchado) => ({
       tipo: a.tipo,
       descricao: a.descricao,
       confianca: a.confianca,
@@ -116,6 +141,7 @@ achados: (resultado.achados || []).map((a: MLAchado) => ({
     })),
     resumo: resultado.resumo,
     recomendacoes: resultado.recomendacoes,
+    regioesInteresse: resultado.regioesInteresse,
   });
 
   const tempoProcessamento = (Date.now() - inicio) / 1000;
@@ -155,9 +181,9 @@ export async function analisarExameComIA(
     where: { id: exameId },
     include: {
       tipoExame: { select: { nome: true, modalidade: true } },
-      imagens: {
+imagens: {
         where: imagemId ? { id: imagemId } : {},
-        select: { id: true, exameId: true, filename: true, originalName: true, mimeType: true, tamanho: true, path: true, createdAt: true },
+        select: { id: true, exameId: true, filename: true, originalName: true, mimeType: true, tamanho: true, path: true, dados: true, createdAt: true },
       },
     },
   });
