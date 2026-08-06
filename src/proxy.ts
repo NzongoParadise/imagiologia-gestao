@@ -5,8 +5,12 @@
 // e tem permissão para aceder aos módulos do dashboard.
 // ---------------------------------------------------------------------------
 
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth.config";
 import { temPermissao, type Modulo, MENU_MODULOS } from "@/lib/permissions";
+
+// Instância de auth edge-safe (sem providers Node/Prisma) para o middleware.
+const { auth } = NextAuth(authConfig);
 
 export default async function proxy(request: Request) {
   const { pathname } = new URL(request.url);

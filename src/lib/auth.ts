@@ -2,9 +2,11 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { prisma } from "./db";
+import { authConfig } from "./auth.config";
 import type { Role } from "@/lib/permissions";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
   providers: [
     Credentials({
       name: "credentials",
@@ -43,29 +45,4 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
   ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.role = user.role as Role;
-        token.id = user.id;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.role = token.role as Role;
-        session.user.id = token.id as string;
-      }
-      return session;
-    },
-  },
-  pages: {
-    signIn: "/login",
-  },
-  session: {
-    strategy: "jwt",
-  },
-  // Permite que o NextAuth derive o host a partir do cabeçalho da requisição,
-  // permitindo acesso por localhost e por IP da rede local (ex: 192.168.x.x).
-  trustHost: true,
 });
