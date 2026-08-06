@@ -13,4 +13,4 @@
 - [x] 9. Criar página `/medico/exames/[id]/diagnostico`
 - [x] 10. Adicionar botão "Diagnóstico IA" na página de detalhe do exame
 - [x] 11. Validação com `npm run build`
-- [ ] 12. Commit e push
+- [x] 12. Commit e push
