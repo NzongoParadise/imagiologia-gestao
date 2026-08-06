@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   HiOutlineArrowLeft,
@@ -62,12 +62,16 @@ export default function LoginPage() {
         redirect: false,
       });
 
-      if (result?.error) {
+if (result?.error) {
         setError("Email ou password incorretos");
         toast.error("Email ou password incorretos");
       } else if (result?.ok) {
         toast.success("Login realizado com sucesso!");
-        router.push("/dashboard");
+        // Redireciona conforme a role do utilizador
+        const session = await getSession();
+        const role = (session?.user as { role?: string } | undefined)?.role;
+        const destino = role === "MEDICO" ? "/medico" : "/dashboard";
+        router.push(destino);
         router.refresh();
       }
     } catch {

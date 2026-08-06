@@ -1,11 +1,19 @@
 import { getExamesCount, getExamesPorModalidade, getExamesMensais } from "@/server/actions/exames-actions";
 import { prisma } from "@/lib/db";
 import { verificarPermissao } from "@/lib/permissions-server";
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { DashboardClient } from "./dashboard-client";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  const session = await auth();
+  // Se for médico, redireciona para o Portal do Médico
+  if (session?.user?.role === "MEDICO") {
+    redirect("/medico");
+  }
+
   await verificarPermissao("dashboard");
 
   const [examesCount, modalidades, examesMensais, ultimosExames, ultimosPacientes, totalPacientes] =
