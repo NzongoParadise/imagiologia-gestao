@@ -450,3 +450,211 @@ export async function diagnosticarMultiplasImagens(
   }
   return diagnosticos;
 }
+
+// =========================================================================
+// Modo SERVIDOR (Node.js)
+// =========================================================================
+//
+// As server actions de IA (ai.service.ts) executam em Node.js, onde as APIs
+// de browser (canvas, Image, HTMLImageElement) NÃO existem. Para isso, este
+// bloco fornece uma via server-safe:
+//   1) Tenta chamar o backend de IA (TorchXRayVision) diretamente com os
+//      bytes da imagem (sem depender de browser).
+//   2) Se indisponível, usa um fallback heurístico determinístico baseado
+//      nas estatísticas dos bytes da imagem.
+// =========================================================================
+
+function obterModalidadeServer(nome: string): string {
+  return obterModalidadePeloNome(nome);
+}
+
+/**
+ * Envia os bytes da imagem diretamente ao backend de IA (AI_BACKEND_URL),
+ * sem passar por APIs de browser. Usa o endpoint FIFO que resolve para o
+ * URL do backend (env AI_BACKEND_URL) ou o proxy local /api/ia/analisar.
+ */
+async function chamarBackendIAServer(
+  imagemId: number,
+  imagemBytes: Buffer,
+  nomeTipoExame?: string
+): Promise<MLDiagnostico | null> {
+  const modalidade = obterModalidadeServer(nomeTipoExame || "");
+
+  const form = new FormData();
+  // Blob/FormData estão disponíveis no Node 18+ (global).
+  form.append("file", new Blob([new Uint8Array(imagemBytes)]), "imagem.png");
+  form.append("modalidade", modalidade);
+
+  const aiBackendUrl = process.env.AI_BACKEND_URL?.replace(/\/$/, "");
+  const url = aiBackendUrl ? `${aiBackendUrl}/api/analisar` : "/api/ia/analisar";
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      body: form,
+      // Não definir Content-Type: o fetch define o boundary multipart.
+      ...(aiBackendUrl ? {} : { next: { revalidate: 0 } }),
+    } as RequestInit);
+
+    if (!res.ok) {
+      console.warn("Backend de IA indisponível (server), a usar fallback:", res.status);
+      return null;
+    }
+
+    const dados = await res.json();
+    return {
+      ...dados,
+      imagemId,
+      modalidade: dados.modalidade || modalidade,
+      achados: dados.achados ?? [],
+      recomendacoes: dados.recomendacoes ?? [],
+      metadados:
+        dados.metadados ?? {
+          dimensoes: { largura: 0, altura: 0 },
+          brilhoMedio: 0,
+          nitidez: 0,
+          contraste: 0,
+          histograma: [],
+          razaoAspecto: 0,
+        },
+      regioesInteresse: dados.regioesInteresse ?? [],
+    } as MLDiagnostico;
+  } catch (err) {
+    console.warn("Falha ao chamar backend de IA (server), a usar fallback:", err);
+    return null;
+  }
+}
+
+/**
+ * Analisa estatísticas básicas dos bytes crus da imagem (brilho/contraste)
+ * de forma determinística para gerar um fallback sem depender de browser.
+ * NÃO é um modelo médico validado — apenas sugestão de apoio.
+ */
+function calcularEstatisticasServer(imagemBytes: Buffer): {
+  brilhoMedio: number;
+  contraste: number;
+} {
+  const bytes = new Uint8Array(imagemBytes);
+  if (bytes.length === 0) return { brilhoMedio: 50, contraste: 50 };
+
+  // Amostra um subconjunto dos bytes para performance.
+  const passo = Math.max(1, Math.floor(bytes.length / 200_000));
+  let soma = 0;
+  let somaQuad = 0;
+  let conta = 0;
+  for (let i = 0; i < bytes.length; i += passo) {
+    const v = bytes[i];
+    soma += v;
+    somaQuad += v * v;
+    conta++;
+  }
+  const media = soma / (conta || 1);
+  const variancia = somaQuad / (conta || 1) - media * media;
+  const desvio = Math.sqrt(Math.max(variancia, 0));
+
+  return {
+    brilhoMedio: Math.round(Math.min(Math.max((media / 255) * 100, 0), 100)),
+    contraste: Math.round(Math.min(Math.max((desvio / 128) * 100, 0), 100)),
+  };
+}
+
+/**
+ * Fallback heurístico server-safe. Gera um MLDiagnostico a partir das
+ * estatísticas dos bytes da imagem (sem browser).
+ */
+function gerarDiagnosticoFallbackServer(
+  imagemId: number,
+  modalidade: string,
+  brilhoMedio: number,
+  contraste: number
+): MLDiagnostico {
+  const possiveis = DIAGNOSTICOS_POR_MODALIDADE[modalidade] || DIAGNOSTICOS_GENERICOS;
+  const achados: MLAchado[] = [];
+  const regioesInteresse: MLRegiao[] = [];
+  let diagnosticoPrincipal: string | null = null;
+  let confiancaDiagnostico = 0;
+  const recomendacoes: string[] = [];
+
+  for (const diag of possiveis) {
+    let score = 50;
+    const [min, max] = diag.limiarBrilho;
+    if (brilhoMedio >= min && brilhoMedio <= max) score += 15;
+    if (contraste >= diag.limiarContraste) score += 15;
+
+    const confianca = Math.min(score, 98);
+    if (confianca > 20) {
+      achados.push({
+        tipo: diag.nome,
+        descricao: diag.descricao,
+        gravidade: diag.gravidade,
+        confianca,
+        categoria: diag.categoria,
+        localizacao: "Difuso / Geral",
+      });
+    }
+    if (confianca > confiancaDiagnostico && diag.categoria !== "normal") {
+      confiancaDiagnostico = confianca;
+      diagnosticoPrincipal = diag.nome;
+    }
+  }
+
+  if (achados.some((a) => a.gravidade === "severo")) {
+    recomendacoes.push("Reavaliacao clinica urgente recomendada");
+  }
+  if (achados.some((a) => a.gravidade === "moderado")) {
+    recomendacoes.push("Avaliacao por medico especialista recomendada");
+  }
+  if (achados.every((a) => a.categoria === "normal")) {
+    recomendacoes.push("Exame dentro dos parametros de normalidade");
+  }
+  recomendacoes.push(
+    "⚠️ Análise LOCAL de demonstração (heurística de brilho/contraste). NÃO é um modelo médico validado. O diagnóstico definitivo deve ser feito por médico especialista."
+  );
+
+  const principal = achados.find((a) => a.confianca > 60);
+  const resumo = principal
+    ? `${principal.tipo} (confianca: ${principal.confianca}%) - ${principal.descricao}.${achados.length > 1 ? ` Mais ${achados.length - 1} achado(s).` : ""}`
+    : "Nenhuma alteracao significativa detectada automaticamente.";
+
+  return {
+    imagemId,
+    modalidade,
+    resumo,
+    achados,
+    diagnosticoPrincipal,
+    confiancaDiagnostico,
+    recomendacoes,
+    metadados: {
+      dimensoes: { largura: 0, altura: 0 },
+      brilhoMedio,
+      nitidez: 0,
+      contraste,
+      histograma: [],
+      razaoAspecto: 0,
+    },
+    regioesInteresse,
+    processadoEm: new Date().toISOString(),
+  };
+}
+
+/**
+ * API pública server-safe para diagnóstico de imagem a partir dos bytes.
+ * Deve ser usada em server actions / Node.js (NÃO usa APIs de browser).
+ */
+export async function diagnosticarImagemServer(
+  imagemId: number,
+  imagemBytes: Buffer,
+  nomeTipoExame?: string
+): Promise<MLDiagnostico> {
+  // 1) Tenta o backend real primeiro (envio direto dos bytes).
+  const backendResult = await chamarBackendIAServer(imagemId, imagemBytes, nomeTipoExame);
+  if (backendResult) {
+    return backendResult;
+  }
+
+  // 2) Fallback server-safe (heurística de bytes).
+  const { brilhoMedio, contraste } = calcularEstatisticasServer(imagemBytes);
+  const modalidade = obterModalidadeServer(nomeTipoExame || "");
+
+  return gerarDiagnosticoFallbackServer(imagemId, modalidade, brilhoMedio, contraste);
+}
