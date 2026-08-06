@@ -16,14 +16,14 @@ export default function NovoPacientePage() {
     e.preventDefault();
     setLoading(true);
     const formData = new FormData(e.currentTarget);
-    const data = {
+const data = {
       numeroProcesso: formData.get("numeroProcesso") as string,
       nome: formData.get("nome") as string,
-      dataNascimento: (formData.get("dataNascimento") as string) || null,
-      sexo: (formData.get("sexo") as string) || null,
+      dataNascimento: formData.get("dataNascimento") as string,
+      sexo: formData.get("sexo") as string,
       telefone: (formData.get("telefone") as string) || null,
       email: (formData.get("email") as string) || null,
-      endereco: (formData.get("endereco") as string) || null,
+      endereco: formData.get("endereco") as string,
       documento: (formData.get("documento") as string) || null,
       nif: (formData.get("nif") as string) || null,
       bi: (formData.get("bi") as string) || null,
@@ -82,18 +82,20 @@ export default function NovoPacientePage() {
                 className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Data de Nascimento</label>
+<div className="space-y-2">
+              <label className="text-sm font-medium">Data de Nascimento *</label>
               <input
                 name="dataNascimento"
                 type="date"
+                required
                 className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Sexo</label>
+              <label className="text-sm font-medium">Sexo *</label>
               <select
                 name="sexo"
+                required
                 className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
               >
                 <option value="">Selecionar...</option>
@@ -140,10 +142,11 @@ export default function NovoPacientePage() {
                 className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
               />
             </div>
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-medium">Endereco</label>
+<div className="space-y-2 md:col-span-2">
+              <label className="text-sm font-medium">Endereço *</label>
               <input
                 name="endereco"
+                required
                 className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
               />
             </div>

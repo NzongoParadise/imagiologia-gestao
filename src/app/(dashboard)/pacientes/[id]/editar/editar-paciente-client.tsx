@@ -36,14 +36,14 @@ export function EditarPacienteClient({ paciente }: EditarPacienteClientProps) {
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const data = {
+const data = {
       numeroProcesso: formData.get("numeroProcesso") as string,
       nome: formData.get("nome") as string,
-      dataNascimento: (formData.get("dataNascimento") as string) || null,
-      sexo: (formData.get("sexo") as string) || null,
+      dataNascimento: formData.get("dataNascimento") as string,
+      sexo: formData.get("sexo") as string,
       telefone: (formData.get("telefone") as string) || null,
       email: (formData.get("email") as string) || null,
-      endereco: (formData.get("endereco") as string) || null,
+      endereco: formData.get("endereco") as string,
       documento: (formData.get("documento") as string) || null,
       nif: (formData.get("nif") as string) || null,
       bi: (formData.get("bi") as string) || null,
@@ -102,19 +102,21 @@ export function EditarPacienteClient({ paciente }: EditarPacienteClientProps) {
                 className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Data de Nascimento</label>
+<div className="space-y-2">
+              <label className="text-sm font-medium">Data de Nascimento *</label>
               <input
                 name="dataNascimento"
                 type="date"
+                required
                 defaultValue={paciente.dataNascimento ? paciente.dataNascimento.split("T")[0] : ""}
                 className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Sexo</label>
+              <label className="text-sm font-medium">Sexo *</label>
               <select
                 name="sexo"
+                required
                 defaultValue={paciente.sexo || ""}
                 className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
               >
@@ -157,10 +159,11 @@ export function EditarPacienteClient({ paciente }: EditarPacienteClientProps) {
                 className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
               />
             </div>
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-medium">Endereço</label>
+<div className="space-y-2 md:col-span-2">
+              <label className="text-sm font-medium">Endereço *</label>
               <input
                 name="endereco"
+                required
                 defaultValue={paciente.endereco || ""}
                 className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
               />

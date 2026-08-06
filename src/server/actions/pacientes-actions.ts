@@ -70,15 +70,15 @@ export async function criarPaciente(data: PacienteInput) {
   await autorizar("pacientes", "criar");
   const validated = pacienteSchema.parse(data);
 
-  const paciente = await prisma.paciente.create({
+const paciente = await prisma.paciente.create({
     data: {
       numeroProcesso: validated.numeroProcesso,
       nome: validated.nome,
-      dataNascimento: validated.dataNascimento ? new Date(validated.dataNascimento) : null,
-      sexo: validated.sexo || null,
+      dataNascimento: new Date(validated.dataNascimento),
+      sexo: validated.sexo,
       telefone: validated.telefone || null,
       email: validated.email || null,
-      endereco: validated.endereco || null,
+      endereco: validated.endereco,
       documento: validated.documento || null,
       nif: validated.nif || null,
       bi: validated.bi || null,
@@ -103,16 +103,16 @@ export async function atualizarPaciente(id: number, data: PacienteInput) {
   await autorizar("pacientes", "editar");
   const validated = pacienteSchema.parse(data);
 
-  const paciente = await prisma.paciente.update({
+const paciente = await prisma.paciente.update({
     where: { id },
     data: {
       numeroProcesso: validated.numeroProcesso,
       nome: validated.nome,
-      dataNascimento: validated.dataNascimento ? new Date(validated.dataNascimento) : null,
-      sexo: validated.sexo || null,
+      dataNascimento: new Date(validated.dataNascimento),
+      sexo: validated.sexo,
       telefone: validated.telefone || null,
       email: validated.email || null,
-      endereco: validated.endereco || null,
+      endereco: validated.endereco,
       documento: validated.documento || null,
       nif: validated.nif || null,
       bi: validated.bi || null,
