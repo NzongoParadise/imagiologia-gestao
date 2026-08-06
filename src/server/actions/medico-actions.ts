@@ -745,6 +745,166 @@ export async function obterDadosSolicitacao() {
     listarRadiologistas(),
   ]);
 
-  return { pacientes, tiposExame, radiologistas };
+return { pacientes, tiposExame, radiologistas };
+}
+
+// ---------------------------------------------------------------------------
+// Diagnóstico Assistido por IA
+// ---------------------------------------------------------------------------
+
+/**
+ * Executa a análise de IA sobre as imagens de um exame e persiste o resultado.
+ * O utilizador autenticado (médico) é registado como autor da análise.
+ */
+export async function analisarExameComIA(exameId: number, imagemId?: number) {
+  await autorizar("medico", "criar");
+  const session = await auth();
+  const userId = session?.user?.id ? Number(session.user.id) : null;
+
+  const exame = await prisma.exame.findUnique({
+    where: { id: exameId },
+    include: { tipoExame: { select: { nome: true, modalidade: true } } },
+  });
+  if (!exame) throw new Error("Exame não encontrado");
+
+  const servico = await import("@/services/ai.service");
+  const resultados = await servico.analisarExameComIA(exameId, userId, imagemId);
+
+  await registarHistorico({
+    acao: "ANALISE_IA",
+    entidade: "EXAME",
+    entidadeId: exameId,
+    descricao: `Diagnóstico assistido por IA executado sobre ${resultados.length} imagem(ns)`,
+    exameId,
+    utilizadorId: userId || undefined,
+  });
+
+  revalidatePath(`/medico/exames/${exameId}`);
+  revalidatePath(`/medico/exames/${exameId}/diagnostico`);
+  return resultados;
+}
+
+/**
+ * Lista o histórico de análises de IA de um exame.
+ */
+export async function obterAnalisesIA(exameId: number) {
+  await autorizar("medico");
+  const servico = await import("@/services/ai.service");
+  return servico.listarAnalisesIA(exameId);
+}
+
+/**
+ * Obtém a análise de IA mais recente de um exame.
+ */
+export async function obterAnaliseMaisRecenteIA(exameId: number) {
+  await autorizar("medico");
+  const servico = await import("@/services/ai.service");
+  return servico.obterAnaliseMaisRecente(exameId);
+}
+
+/**
+ * Atualiza o pré-laudo gerado pela IA (texto editável pelo médico).
+ */
+export async function atualizarPreLaudoIA(analiseId: number, preLaudo: string) {
+  await autorizar("medico", "editar");
+  if (!preLaudo || preLaudo.trim().length < 10) {
+    throw new Error("O pré-laudo deve ter pelo menos 10 caracteres");
+  }
+  const servico = await import("@/services/ai.service");
+  const resultado = await servico.atualizarPreLaudoIA(analiseId, preLaudo);
+
+  await registarHistorico({
+    acao: "PRE_LAUDO_IA",
+    entidade: "EXAME",
+    entidadeId: resultado.exameId,
+    descricao: "Pré-laudo de IA atualizado pelo médico",
+    exameId: resultado.exameId,
+  });
+
+  revalidatePath(`/medico/exames/${resultado.exameId}/diagnostico`);
+  return resultado;
+}
+
+/**
+ * Transforma o pré-laudo de IA num laudo oficial (reusa criarLaudo).
+ */
+export async function transformarPreLaudoEmLaudo(analiseId: number, conteudo: string) {
+  await autorizar("medico", "criar");
+  const servico = await import("@/services/ai.service");
+  const analise = await prisma.analiseIA.findUnique({ where: { id: analiseId } });
+  if (!analise) throw new Error("Análise de IA não encontrada");
+
+  const validado = laudoSchema.parse({ exameId: analise.exameId, conteudo });
+  const laudo = await criarLaudo(validado);
+
+  // Marca a análise como transformada
+  await prisma.analiseIA.update({
+    where: { id: analiseId },
+    data: { status: "concluido" },
+  });
+
+  await registarHistorico({
+    acao: "LAUDO_IA",
+    entidade: "EXAME",
+    entidadeId: analise.exameId,
+    descricao: "Pré-laudo de IA transformado em laudo oficial",
+    exameId: analise.exameId,
+  });
+
+  revalidatePath(`/medico/exames/${analise.exameId}`);
+  revalidatePath(`/medico/exames/${analise.exameId}/diagnostico`);
+  return serializarLaudo(laudo);
+}
+
+/**
+ * Obtém os exames anteriores do mesmo paciente (para comparação na página IA).
+ */
+export async function obterExamesAnterioresPaciente(exameId: number) {
+  await autorizar("medico");
+  const exame = await prisma.exame.findUnique({
+    where: { id: exameId },
+    select: { pacienteId: true, dataExame: true },
+  });
+  if (!exame) throw new Error("Exame não encontrado");
+
+  const exames = await prisma.exame.findMany({
+    where: {
+      pacienteId: exame.pacienteId,
+      id: { not: exameId },
+      OR: [{ imagens: { some: {} } }, { laudos: { some: { conteudo: { not: "" } } } }],
+    },
+    orderBy: { dataExame: "desc" },
+    take: 10,
+    include: {
+      tipoExame: { select: { id: true, nome: true, modalidade: true } },
+      imagens: {
+        select: { id: true, exameId: true, filename: true, originalName: true, mimeType: true, tamanho: true, path: true, createdAt: true },
+        take: 3,
+      },
+      laudos: { select: { id: true, assinado: true, conteudo: true, assinadoEm: true } },
+    },
+  });
+
+  return exames.map((e: any) => ({
+    ...e,
+    dataExame: e.dataExame?.toISOString(),
+    createdAt: e.createdAt?.toISOString(),
+    imagens: e.imagens.map((i: any) => ({ ...i, createdAt: i.createdAt?.toISOString() })),
+    laudos: (e.laudos || []).map((l: any) => ({ ...l, assinadoEm: l.assinadoEm?.toISOString() ?? null })),
+  }));
+}
+
+/**
+ * Dados para a página de Diagnóstico IA: exame, imagens, análises e exames anteriores.
+ */
+export async function obterDadosDiagnosticoIA(exameId: number) {
+  await autorizar("medico");
+  const [exame, analises, examesAnteriores] = await Promise.all([
+    obterSolicitacaoMedico(exameId),
+    obterAnalisesIA(exameId),
+    obterExamesAnterioresPaciente(exameId),
+  ]);
+
+  return { exame, analises, examesAnteriores };
 }
 

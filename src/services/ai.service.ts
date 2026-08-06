@@ -1,0 +1,267 @@
+// ---------------------------------------------------------------------------
+// Serviço de Diagnóstico Assistido por IA (Portal do Médico)
+//
+// Orquestra a análise de imagens de um exame:
+//   1. Valida o exame e as imagens (autorização no server action).
+//   2. Invoca o motor de IA (ml-service → /api/ia/analisar → FastAPI).
+//   3. Normaliza o resultado para o modelo de dados `AnaliseIA`.
+//   4. Persiste a análise e devolve o resultado normalizado.
+//
+// ⚠️ Segurança clínica: a IA produz apenas hipóteses de APOIO à decisão.
+// O diagnóstico definitivo pertence sempre ao médico especialista.
+// ---------------------------------------------------------------------------
+
+import { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/db";
+import { diagnosticarImagem } from "@/features/imagens/services/ml-service";
+import type { MLAchado } from "@/features/imagens/types";
+import type { AnaliseIA, ResultadoAnaliseIA, AchadoIA } from "@/features/medico/types/ia";
+
+/**
+ * Converte um resultado do motor de IA (MLDiagnostico) para o formato
+ * normalizado `ResultadoAnaliseIA` usado pela UI e pela persistência.
+ */
+export function normalizarResultadoIA(
+  resultado: {
+    diagnosticoPrincipal: string | null;
+    confiancaDiagnostico: number;
+    achados: Array<{ tipo: string; descricao?: string; confianca: number; gravidade?: string }>;
+    resumo: string;
+    recomendacoes?: string[];
+    processadoEm?: string;
+  }
+): ResultadoAnaliseIA {
+  const achados: AchadoIA[] = (resultado.achados || []).map((a) => ({
+    nome: a.tipo,
+    probabilidade: a.confianca ?? 0,
+    presente: (a.confianca ?? 0) > 50,
+    descricao: a.descricao,
+  }));
+
+  return {
+    diagnostico: resultado.diagnosticoPrincipal || "Sem alterações significativas",
+    confidence: resultado.confiancaDiagnostico ?? 0,
+    findings: achados,
+    summary: resultado.resumo || "",
+    model: "TorchXRayVision",
+    preLaudo: gerarPreLaudo(resultado),
+  };
+}
+
+/**
+ * Gera um texto-base de pré-laudo a partir do resultado da IA.
+ * Serve de ponto de partida editável para o médico.
+ */
+export function gerarPreLaudo(resultado: {
+  diagnosticoPrincipal: string | null;
+  confiancaDiagnostico: number;
+  achados: Array<{ tipo: string; descricao?: string; gravidade?: string }>;
+  resumo: string;
+}): string {
+  const linhas: string[] = [];
+
+  linhas.push("DESCRIÇÃO:");
+  linhas.push((resultado.resumo || "").trim() || "Sem descrição automática disponível.");
+  linhas.push("");
+
+  if (resultado.achados && resultado.achados.length > 0) {
+    linhas.push("ACHADOS:");
+    for (const a of resultado.achados) {
+      const gravidade = a.gravidade ? ` [${a.gravidade}]` : "";
+      linhas.push(`- ${a.tipo}${gravidade}${a.descricao ? `: ${a.descricao}` : ""}`);
+    }
+    linhas.push("");
+  }
+
+  linhas.push("CONCLUSÃO:");
+  linhas.push(
+    resultado.diagnosticoPrincipal
+      ? `Sugestão automática: ${resultado.diagnosticoPrincipal} (confiança ${Math.round(
+          resultado.confiancaDiagnostico
+        )}%). Correlacionar com o quadro clínico.`
+      : "Sem alterações significativas detectadas automaticamente."
+  );
+  linhas.push("");
+  linhas.push(
+    "NOTA: Texto gerado por IA como apoio à decisão. Sujeito a revisão e validação clínica pelo médico responsável antes de assinatura."
+  );
+
+  return linhas.join("\n");
+}
+
+/**
+ * Executa a análise de IA sobre uma imagem de um exame e persiste o resultado.
+ * A autorização é feita pela server action que invoca esta função.
+ */
+export async function analisarImagemComIA(
+  exameId: number,
+  imagem: { id: number; path: string },
+  utilizadorId: number | null,
+  nomeTipoExame?: string
+): Promise<AnaliseIA> {
+  const inicio = Date.now();
+
+  // 1. Invoca o motor de IA (usa o backend real se disponível, senão fallback local)
+  const resultado = await diagnosticarImagem(imagem.id, imagem.path, nomeTipoExame);
+
+  // 2. Normaliza para o formato persistido
+  const normalizado = normalizarResultadoIA({
+    diagnosticoPrincipal: resultado.diagnosticoPrincipal,
+    confiancaDiagnostico: resultado.confiancaDiagnostico,
+achados: (resultado.achados || []).map((a: MLAchado) => ({
+      tipo: a.tipo,
+      descricao: a.descricao,
+      confianca: a.confianca,
+      gravidade: a.gravidade,
+    })),
+    resumo: resultado.resumo,
+    recomendacoes: resultado.recomendacoes,
+  });
+
+  const tempoProcessamento = (Date.now() - inicio) / 1000;
+
+  // 3. Persiste
+  const analise = await prisma.analiseIA.create({
+    data: {
+      exameId,
+      utilizadorId: utilizadorId ?? null,
+      imagemId: imagem.id,
+      modelo: "TorchXRayVision",
+      diagnosticoPrincipal: normalizado.diagnostico,
+      confianca: normalizado.confidence,
+      achados: normalizado.findings as unknown as Prisma.InputJsonValue,
+      resumo: normalizado.summary,
+      resultadoJson: normalizado as unknown as Prisma.InputJsonValue,
+      preLaudo: normalizado.preLaudo,
+      status: "concluido",
+      tempoProcessamento,
+    },
+    include: { utilizador: { select: { id: true, nome: true } } },
+  });
+
+  return serializarAnalise(analise);
+}
+
+/**
+ * Analisa todas as imagens de um exame (ou uma imagem específica) com IA.
+ * Usada pela página de Diagnóstico IA.
+ */
+export async function analisarExameComIA(
+  exameId: number,
+  utilizadorId: number | null,
+  imagemId?: number
+): Promise<AnaliseIA[]> {
+  const exame = await prisma.exame.findUnique({
+    where: { id: exameId },
+    include: {
+      tipoExame: { select: { nome: true, modalidade: true } },
+      imagens: {
+        where: imagemId ? { id: imagemId } : {},
+        select: { id: true, exameId: true, filename: true, originalName: true, mimeType: true, tamanho: true, path: true, createdAt: true },
+      },
+    },
+  });
+
+  if (!exame) throw new Error("Exame não encontrado");
+  if (exame.imagens.length === 0) throw new Error("O exame não tem imagens para analisar");
+
+  const nomeTipoExame = exame.tipoExame?.nome || exame.tipoExame?.modalidade || undefined;
+  const resultados: AnaliseIA[] = [];
+
+  for (const imagem of exame.imagens) {
+    try {
+      const resultado = await analisarImagemComIA(exameId, imagem, utilizadorId, nomeTipoExame);
+      resultados.push(resultado);
+    } catch (err) {
+      console.error(`Erro ao analisar imagem ${imagem.id}:`, err);
+    }
+  }
+
+  return resultados;
+}
+
+/**
+ * Lista o histórico de análises de IA de um exame.
+ */
+export async function listarAnalisesIA(exameId: number, limit = 50): Promise<AnaliseIA[]> {
+  const data = await prisma.analiseIA.findMany({
+    where: { exameId },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: { utilizador: { select: { id: true, nome: true } } },
+  });
+
+  return data.map(serializarAnalise);
+}
+
+/**
+ * Obtém a análise mais recente de um exame (para a página de diagnóstico).
+ */
+export async function obterAnaliseMaisRecente(exameId: number): Promise<AnaliseIA | null> {
+  const data = await prisma.analiseIA.findFirst({
+    where: { exameId },
+    orderBy: { createdAt: "desc" },
+    include: { utilizador: { select: { id: true, nome: true } } },
+  });
+
+  return data ? serializarAnalise(data) : null;
+}
+
+/**
+ * Atualiza o pré-laudo de uma análise (texto editável pelo médico).
+ */
+export async function atualizarPreLaudoIA(analiseId: number, preLaudo: string): Promise<AnaliseIA> {
+  const data = await prisma.analiseIA.update({
+    where: { id: analiseId },
+    data: { preLaudo },
+    include: { utilizador: { select: { id: true, nome: true } } },
+  });
+
+  return serializarAnalise(data);
+}
+
+// ---------------------------------------------------------------------------
+// Helpers de serialização
+// ---------------------------------------------------------------------------
+
+function serializarAnalise(
+  a: {
+    id: number;
+    exameId: number;
+    utilizadorId: number | null;
+    imagemId: number | null;
+    modelo: string;
+    diagnosticoPrincipal: string | null;
+    confianca: number;
+    achados: unknown;
+    resumo: string;
+    resultadoJson: unknown;
+    heatmap: string | null;
+    preLaudo: string | null;
+    status: string;
+    tempoProcessamento: number;
+    createdAt: Date;
+    updatedAt: Date;
+    utilizador?: { id: number; nome: string } | null;
+  }
+): AnaliseIA {
+  return {
+    id: a.id,
+    exameId: a.exameId,
+    utilizadorId: a.utilizadorId,
+    imagemId: a.imagemId,
+    modelo: a.modelo,
+    diagnosticoPrincipal: a.diagnosticoPrincipal,
+    confianca: a.confianca,
+    achados: (a.achados as AchadoIA[]) || [],
+    resumo: a.resumo,
+    resultadoJson: (a.resultadoJson as ResultadoAnaliseIA) || {},
+    heatmap: a.heatmap,
+    preLaudo: a.preLaudo,
+    status: (a.status as AnaliseIA["status"]) || "concluido",
+    tempoProcessamento: a.tempoProcessamento,
+    createdAt: a.createdAt.toISOString(),
+    updatedAt: a.updatedAt.toISOString(),
+    utilizador: a.utilizador,
+  };
+}

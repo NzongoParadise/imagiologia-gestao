@@ -16,6 +16,8 @@ import {
   MessageCircle,
   Printer,
   History,
+  BrainCircuit,
+  GitCompareArrows,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { formatDate, formatDateTime } from "@/utils/format";
@@ -299,12 +301,20 @@ export function ExameDetalheClient({ exame, laudo: initialLaudo }: Props) {
                 <MessageCircle className="h-4 w-4 text-primary" />
                 Comunicar com Radiologista
               </button>
-              {laudo && !laudo.assinado && (
+{laudo && !laudo.assinado && (
                 <button onClick={handleAssinarLaudo} disabled={loadingLaudo} className="flex w-full items-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors">
                   {loadingLaudo ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSignature className="h-4 w-4" />}
                   {loadingLaudo ? "A assinar..." : "Assinar Laudo"}
                 </button>
               )}
+              <Link href={`/medico/exames/${exame.id}/diagnostico`} className="flex w-full items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 text-sm font-medium text-primary hover:bg-primary/10 transition-colors">
+                <BrainCircuit className="h-4 w-4" />
+                Diagnóstico IA
+              </Link>
+              <Link href={`/medico/comparar?exameId=${exame.id}`} className="flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium hover:bg-accent transition-colors">
+                <GitCompareArrows className="h-4 w-4 text-indigo-600" />
+                Comparar Exames
+              </Link>
               <Link href={`/medico/pacientes/${exame.paciente?.id}`} className="flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium hover:bg-accent transition-colors">
                 <History className="h-4 w-4 text-purple-600" />
                 Histórico do Paciente

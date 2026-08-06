@@ -31,6 +31,7 @@ model Utilizador {
   chamadasFeitas    ChamadaVoz[]           @relation("ChamadasFeitas")
   chamadasRecebidas ChamadaVoz[]           @relation("ChamadasRecebidas")
   sinaisVoip        SinalVoip[]
+  analisesIA        AnaliseIA[]
 }
 
 model Paciente {
@@ -123,6 +124,7 @@ model Exame {
   historico       Historico[]
   notificacoes    Notificacao[]
   anotacoes       Anotacao[]
+  analisesIA      AnaliseIA[]
 
   @@index([pacienteId])
   @@index([tipoExameId])
@@ -132,6 +134,32 @@ model Exame {
   @@index([estado])
   @@index([prioridade])
   @@map("exames")
+}
+
+model AnaliseIA {
+  id                   Int      @id @default(autoincrement())
+  exameId              Int      @map("exame_id")
+  utilizadorId         Int?     @map("utilizador_id")
+  imagemId             Int?     @map("imagem_id")
+  modelo               String   @default("TorchXRayVision")
+  diagnosticoPrincipal String?  @map("diagnostico_principal")
+  confianca            Float    @default(0)
+  achados              Json
+  resumo               String
+  resultadoJson        Json     @map("resultado_json")
+  heatmap              String?
+  preLaudo             String?
+  status               String   @default("concluido")
+  tempoProcessamento   Float    @default(0) @map("tempo_processamento")
+  createdAt            DateTime @default(now()) @map("criado_em")
+  updatedAt            DateTime @updatedAt @map("atualizado_em")
+
+  exame      Exame       @relation(fields: [exameId], references: [id], onDelete: Cascade)
+  utilizador Utilizador? @relation(fields: [utilizadorId], references: [id])
+
+  @@index([exameId])
+  @@index([utilizadorId])
+  @@map("analises_ia")
 }
 
 model Laudo {
