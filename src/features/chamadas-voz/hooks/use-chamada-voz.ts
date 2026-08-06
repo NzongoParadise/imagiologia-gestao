@@ -239,12 +239,15 @@ export function useChamadaVoz({
           return;
         }
 
-        // Chamada ativa (A_CHAMAR ou EM_CURSO) - configurar peer
-        if (
-          (ativa.estado === "A_CHAMAR" || ativa.estado === "EM_CURSO") &&
-          !chamadaEmCursoRef.current &&
-          !emCurso
-        ) {
+// A chamada só deve ser gerida como "ativa em curso" quando o utilizador
+        // é o CHAMADOR de uma chamada A_CHAMAR, ou quando a chamada já está EM_CURSO.
+        // Chamadas A_CHAMAR destinadas ao RECEPTOR devem manter o modal de chamada
+        // recebida (com botão Aceitar), e não o modal de chamada ativa (com Terminar).
+        const gerirComoAtiva =
+          ativa.estado === "EM_CURSO" ||
+          (ativa.estado === "A_CHAMAR" && ativa.chamadorId === currentUserId);
+
+        if (gerirComoAtiva && !chamadaEmCursoRef.current && !emCurso) {
           chamadaEmCursoRef.current = true;
           setEmCurso(true);
           const peer = await configurarPeer(true);
