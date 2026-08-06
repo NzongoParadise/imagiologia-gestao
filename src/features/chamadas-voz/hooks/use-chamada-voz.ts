@@ -299,6 +299,9 @@ export function useChamadaVoz({
         conversaId,
       });
 
+      // Reset da sinalização para a nova chamada
+      ultimoSinalIdRef.current = 0;
+
       setChamadaAtiva(chamada);
       chamadaAtivaRef.current = chamada;
       chamadaEmCursoRef.current = true;
@@ -326,6 +329,9 @@ export function useChamadaVoz({
     chamadaAtivaRef.current = chamada;
     chamadaEmCursoRef.current = true;
     setEmCurso(true);
+
+    // Reset da sinalização para a nova chamada
+    ultimoSinalIdRef.current = 0;
 
     // Configurar peer como receptor (sem criar offer, aguardar a do chamador)
     await configurarPeer(true);
