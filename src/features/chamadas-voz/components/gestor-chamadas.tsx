@@ -33,33 +33,60 @@ export function GestorChamadas() {
   const chamadaEntrada = chamada.chamadaEntrada;
   const chamadaAtiva = chamada.chamadaAtiva;
 
-  const nomeChamada = chamadaEntrada
+  // Determina se devemos mostrar o modal de "chamada recebida".
+  // Ocorre quando o utilizador é o RECEPTOR de uma chamada A_CHAMAR.
+  const mostrarChamadaRecebida =
+    !!chamadaEntrada &&
+    chamadaEntrada.receptorId === currentUserId &&
+    chamadaEntrada.estado === "A_CHAMAR";
+
+  // Determina se devemos mostrar o modal de "chamada ativa".
+  // Apenas quando está realmente em curso e NÃO há chamada recebida a mostrar.
+  const mostrarChamadaAtiva =
+    !!chamadaAtiva &&
+    chamada.emCurso &&
+    !mostrarChamadaRecebida;
+
+  // Nome a apresentar
+  const nomeChamada = mostrarChamadaRecebida
     ? chamadaEntrada.chamador.nome
-    : chamadaAtiva
+    : mostrarChamadaAtiva
       ? chamadaAtiva.chamadorId === currentUserId
         ? chamadaAtiva.receptor.nome
         : chamadaAtiva.chamador.nome
       : "";
 
-  const status = chamadaAtiva?.estado === "A_CHAMAR" ? "A chamar..." : formatarDuracao(duracao);
+  const status = mostrarChamadaAtiva && chamadaAtiva?.estado === "A_CHAMAR"
+    ? "A chamar..."
+    : formatarDuracao(duracao);
 
   return (
     <>
-      <TomChamada ativo={!!chamadaEntrada} loop volume={0.1} />
+      {/* Tom de chamada recebida */}
+      <TomChamada ativo={mostrarChamadaRecebida} loop volume={0.1} />
+      {/* Tom de chamada ativa a chamar (chamador) */}
       <TomChamada
-        ativo={!!chamadaAtiva && chamadaAtiva.estado === "A_CHAMAR" && !chamadaEntrada}
+        ativo={
+          mostrarChamadaAtiva &&
+          !!chamadaAtiva &&
+          chamadaAtiva.estado === "A_CHAMAR"
+        }
         loop
         volume={0.06}
       />
 
-      {/* Chamada recebida */}
-      <AnimatePresence>
-        {chamadaEntrada && (
+      {mostrarChamadaRecebida ? (
+        /* ------------------------------------------------------------------
+           MODAL DE CHAMADA RECEBIDA (botões Aceitar / Rejeitar)
+           Estilo WhatsApp: ecrã a pedir permissão de áudio e aceitar a chamada
+        ------------------------------------------------------------------ */
+        <AnimatePresence>
           <motion.div
+            key="chamada-recebida"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
           >
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
@@ -67,43 +94,51 @@ export function GestorChamadas() {
               exit={{ scale: 0.9, y: 20 }}
               className="w-full max-w-sm rounded-2xl border bg-card p-8 text-center shadow-2xl"
             >
-              <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary/30 to-primary/10 ring-4 ring-primary/20">
-                <User className="h-10 w-10 text-primary" />
+              <div className="relative mx-auto mb-4">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary/30 to-primary/10 ring-4 ring-primary/20">
+                  <User className="h-10 w-10 text-primary" />
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-green-500 ring-2 ring-card" />
               </div>
               <h2 className="text-xl font-bold">{nomeChamada}</h2>
               <p className="text-sm text-muted-foreground mt-1">
                 Chamada de voz de {chamadaEntrada.chamador.role}
               </p>
-              <p className="text-xs text-muted-foreground/60 mt-1 animate-pulse">A chamar...</p>
+              <p className="text-xs text-muted-foreground/60 mt-1 animate-pulse">
+                A convidá-lo para uma chamada...
+              </p>
               <div className="mt-8 flex items-center justify-center gap-6">
                 <button
                   onClick={() => chamada.recusar()}
                   className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive text-white hover:bg-destructive/90 hover:scale-105 transition-transform"
                   aria-label="Rejeitar"
+                  title="Rejeitar chamada"
                 >
                   <PhoneOff className="h-6 w-6" />
                 </button>
                 <button
                   onClick={() => chamada.aceitar()}
                   className="flex h-14 w-14 items-center justify-center rounded-full bg-green-500 text-white hover:bg-green-600 hover:scale-105 transition-transform"
-                  aria-label="Aceitar"
+                  aria-label="Atender"
+                  title="Atender chamada"
                 >
                   <Phone className="h-6 w-6" />
                 </button>
               </div>
             </motion.div>
           </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Chamada ativa */}
-      <AnimatePresence>
-        {chamadaAtiva && chamada.emCurso && (
+        </AnimatePresence>
+      ) : mostrarChamadaAtiva ? (
+        /* ------------------------------------------------------------------
+           MODAL DE CHAMADA ATIVA (botões Microfone / Terminar)
+        ------------------------------------------------------------------ */
+        <AnimatePresence>
           <motion.div
+            key="chamada-ativa"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
           >
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
@@ -128,23 +163,31 @@ export function GestorChamadas() {
                       : "bg-muted text-foreground hover:bg-muted/80"
                   }`}
                   aria-label={chamada.microfoneMudo ? "Ativar microfone" : "Desativar microfone"}
+                  title={chamada.microfoneMudo ? "Ativar microfone" : "Desativar microfone"}
                 >
-                  {chamada.microfoneMudo ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
+                  {chamada.microfoneMudo ? (
+                    <MicOff className="h-6 w-6" />
+                  ) : (
+                    <Mic className="h-6 w-6" />
+                  )}
                 </button>
                 <button
                   onClick={() =>
-                    chamadaAtiva.estado === "A_CHAMAR" ? chamada.cancelar() : chamada.terminar()
+                    chamadaAtiva?.estado === "A_CHAMAR"
+                      ? chamada.cancelar()
+                      : chamada.terminar()
                   }
                   className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive text-white hover:bg-destructive/90 hover:scale-105 transition-transform"
                   aria-label="Terminar"
+                  title="Terminar chamada"
                 >
                   <PhoneOff className="h-6 w-6" />
                 </button>
               </div>
             </motion.div>
           </motion.div>
-        )}
-      </AnimatePresence>
+        </AnimatePresence>
+      ) : null}
     </>
   );
 }
