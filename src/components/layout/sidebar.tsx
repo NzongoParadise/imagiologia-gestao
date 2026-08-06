@@ -110,8 +110,12 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-1">
-        {menuItems
+{menuItems
           .filter((item) => {
+            // Os médicos usam o Portal do Médico; não devem ver o módulo geral de Exames
+            if (session?.user?.role === "MEDICO" && item.href === "/exames") {
+              return false;
+            }
             const modulo = MENU_MODULOS[item.href];
             if (!modulo) return true;
             return temPermissao(session?.user?.role, modulo);
