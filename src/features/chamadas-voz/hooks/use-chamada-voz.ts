@@ -38,6 +38,9 @@ interface UseChamadaVozReturn {
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "stun:stun2.l.google.com:19302" },
+  { urls: "stun:stun3.l.google.com:19302" },
+  { urls: "stun:stun4.l.google.com:19302" },
 ];
 
 const ESTADOS_TERMINADAS = ["TERMINADA", "REJEITADA", "CANCELADA", "NAO_ATENDIDA"];
@@ -312,13 +315,20 @@ if (comOuvinte) {
         // Garantir que o modal de recebida está fechado
         setChamadaEntrada(null);
 
-        // Timeout de chamada não atendida: agenda enquanto A_CHAMAR (chamador)
+// Timeout de chamada não atendida: agenda enquanto A_CHAMAR (chamador)
         // e limpa quando a chamada passa a EM_CURSO (foi atendida).
         if (souChamador) {
           agendarTimeoutNaoAtendida(ativa);
         } else if (ativa.estado === "EM_CURSO") {
           limparTimeoutNaoAtendida();
         }
+
+        // Atualizar SEMPRE a chamada ativa no estado (refletir transição
+        // A_CHAMAR -> EM_CURSO), para que o chamador deixe de mostrar
+        // "A chamar..." quando o receptor atende. Era este o bug em que o
+        // emissor continuava a chamar e a voz não estabelecia.
+        setChamadaAtiva(ativa);
+        chamadaAtivaRef.current = ativa;
 
         if (!chamadaEmCursoRef.current) {
           chamadaEmCursoRef.current = true;
