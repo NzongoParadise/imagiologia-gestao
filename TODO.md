@@ -1,22 +1,15 @@
-# TODO — Módulo Diagnóstico Assistido por IA (Portal do Médico)
+# TODO — Fechar ciclo de chamada de voz (algoritmo WhatsApp)
+
+## Objetivo
+Completar a lógica de chamadas de voz com o ciclo de vida estilo WhatsApp, incluindo o estado `NAO_ATENDIDA` (missed call).
 
 ## Etapas
 
-- [x] 1. Análise do projeto e plano
-- [x] 2. Adicionar modelo `AnaliseIA` ao `prisma/schema.prisma`
-- [x] 3. Criar migration Prisma
-- [x] 4. Criar tipos de IA (`src/features/medico/types/ia.ts`)
-- [x] 5. Criar serviço de IA (`src/services/ai.service.ts`)
-- [x] 6. Adicionar server actions de IA em `medico-actions.ts`
-- [x] 7. Criar API route `GET /api/ia/historico/[exameId]`
-- [x] 8. Criar componentes de IA (DiagnosisCard, ConfidenceScore, FindingsList, HeatmapViewer, ComparisonResult, AIReport, AIHistoryTable)
-- [x] 9. Criar página `/medico/exames/[id]/diagnostico`
-- [x] 10. Adicionar botão "Diagnóstico IA" na página de detalhe do exame
+- [ ] 1. `chamada-actions.ts`: marcar `NAO_ATENDIDA` em `terminarChamada` quando a chamada ainda está `A_CHAMAR`
+- [ ] 2. `chamada-actions.ts`: criar action `marcarNaoAtendida` (timeout/desistência do chamador)
+- [ ] 3. `use-chamada-voz.ts`: importar `marcarNaoAtendida` e corrigir indentação de `peerRef`
+- [ ] 4. `use-chamada-voz.ts`: adicionar timeout de 30s de chamada não atendida (só o chamador)
+- [ ] 5. `use-chamada-voz.ts`: limpar o timeout em aceitar/terminar/cancelar/finalizarPeer
+- [ ] 6. Validação com `npx tsc --noEmit` / `npm run build`
+- [ ] 7. Commit e push
 
-## Correções (análise server-safe)
-
-- [x] 11. Adicionar funções server-safe ao `ml-service.ts` (chamarBackendIAServer, gerarDiagnosticoFallbackServer, diagnosticarImagemServer)
-- [x] 12. Atualizar `ai.service.ts` para usar `diagnosticarImagemServer` (bytes da BD) em vez de APIs de browser
-- [x] 13. Mapear `regioesInteresse` -> `regioes` na normalização para o HeatmapViewer
-- [x] 14. Validação com `npm run build` (TypeScript + Next.js compilam sem erros)
-- [x] 15. Commit e push (branch `blackboxai/fix-diagnostico-ia`)

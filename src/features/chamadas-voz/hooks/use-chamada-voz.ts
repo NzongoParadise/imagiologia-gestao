@@ -12,6 +12,7 @@ import {
   obterChamadasPendentes,
   enviarSinalVoip,
   obterSinaisVoip,
+  marcarNaoAtendida,
 } from "../actions/chamada-actions";
 
 interface UseChamadaVozOptions {
@@ -54,6 +55,10 @@ export function useChamadaVoz({
   const chamadaEmCursoRef = useRef(false);
   const chamadaAtivaRef = useRef<ChamadaDTO | null>(null);
   const alertaSonoroRef = useRef<HTMLAudioElement | null>(null);
+  // Ofers/answers já processadas, para tornar a sinalização idempotente
+  const sinaisProcessadosRef = useRef<Set<number>>(new Set());
+  // Timeout de chamada não atendida (estilo WhatsApp) - apenas para o chamador
+  const timeoutNaoAtendidaRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Manter referência da chamada ativa em curso
   useEffect(() => {
@@ -88,9 +93,43 @@ export function useChamadaVoz({
   // Limpar recursos ao desmontar
   useEffect(() => {
     return () => {
+      if (timeoutNaoAtendidaRef.current) {
+        clearTimeout(timeoutNaoAtendidaRef.current);
+        timeoutNaoAtendidaRef.current = null;
+      }
       finalizarPeer();
     };
   }, [finalizarPeer]);
+
+  // Limpar timeout de chamada não atendida (estilo WhatsApp)
+  const limparTimeoutNaoAtendida = useCallback(() => {
+    if (timeoutNaoAtendidaRef.current) {
+      clearTimeout(timeoutNaoAtendidaRef.current);
+      timeoutNaoAtendidaRef.current = null;
+    }
+  }, []);
+
+  // Agenda o timeout de chamada não atendida (apenas para o chamador).
+  // Se o receptor não atender dentro de 30s, a chamada é marcada como
+  // NAO_ATENDIDA (missed call) e o estado local é limpo.
+  const agendarTimeoutNaoAtendida = useCallback(
+    (chamada: ChamadaDTO) => {
+      limparTimeoutNaoAtendida();
+      if (chamada.estado !== "A_CHAMAR") return;
+      timeoutNaoAtendidaRef.current = setTimeout(() => {
+        timeoutNaoAtendidaRef.current = null;
+        void marcarNaoAtendida(chamada.id)
+          .then(() => {
+            finalizarPeer();
+            setChamadaAtiva(null);
+            chamadaAtivaRef.current = null;
+            chamadaEmCursoRef.current = false;
+          })
+          .catch(() => {});
+      }, 30000);
+    },
+    [limparTimeoutNaoAtendida, finalizarPeer]
+  );
 
   // Obter stream de áudio do microfone
   const obterMicrofone = useCallback(async (): Promise<MediaStream> => {
@@ -120,7 +159,7 @@ export function useChamadaVoz({
         peer.addTrack(track, streamRef.current!);
       });
 
-      if (comOuvinte) {
+if (comOuvinte) {
         // Elemento de áudio para ouvir o outro participante
         const audioEl = document.createElement("audio");
         audioEl.autoplay = true;
@@ -131,6 +170,8 @@ export function useChamadaVoz({
         peer.ontrack = (event) => {
           if (audioRef.current && event.streams[0]) {
             audioRef.current.srcObject = event.streams[0];
+            // Reproduzir explicitamente (autoplay pode ser bloqueado pela política do browser)
+            audioRef.current.play().catch(() => {});
           }
         };
       }
@@ -164,32 +205,40 @@ export function useChamadaVoz({
     [obterMicrofone, finalizarPeer]
   );
 
-  // Processar sinais recebidos
+// Processar sinais recebidos
   const processarSinais = useCallback(async (chamada: ChamadaDTO) => {
-    const sinais = await obterSinaisVoip(chamada.id, ultimoSinalIdRef.current);
-    for (const sinal of sinais) {
-      ultimoSinalIdRef.current = Math.max(ultimoSinalIdRef.current, sinal.id);
+    try {
+      const sinais = await obterSinaisVoip(chamada.id, ultimoSinalIdRef.current);
+      for (const sinal of sinais) {
+        ultimoSinalIdRef.current = Math.max(ultimoSinalIdRef.current, sinal.id);
 
-      const peer = peerRef.current;
-      if (!peer) continue;
+        // Ignorar sinais já processados (idempotência)
+        if (sinaisProcessadosRef.current.has(sinal.id)) continue;
+        sinaisProcessadosRef.current.add(sinal.id);
 
-      if (sinal.tipo === "offer") {
-        const desc = JSON.parse(sinal.conteudo) as RTCSessionDescriptionInit;
-        await peer.setRemoteDescription(desc);
-        const answer = await peer.createAnswer();
-        await peer.setLocalDescription(answer);
-        await enviarSinalVoip({
-          chamadaId: chamada.id,
-          tipo: "answer",
-          conteudo: JSON.stringify(peer.localDescription),
-        });
-      } else if (sinal.tipo === "answer") {
-        const desc = JSON.parse(sinal.conteudo) as RTCSessionDescriptionInit;
-        await peer.setRemoteDescription(desc);
-      } else if (sinal.tipo === "ice") {
-        const candidate = JSON.parse(sinal.conteudo) as RTCIceCandidateInit;
-        await peer.addIceCandidate(candidate).catch(() => {});
+        const peer = peerRef.current;
+        if (!peer) continue;
+
+        if (sinal.tipo === "offer") {
+          const desc = JSON.parse(sinal.conteudo) as RTCSessionDescriptionInit;
+          await peer.setRemoteDescription(desc);
+          const answer = await peer.createAnswer();
+          await peer.setLocalDescription(answer);
+          await enviarSinalVoip({
+            chamadaId: chamada.id,
+            tipo: "answer",
+            conteudo: JSON.stringify(peer.localDescription),
+          });
+        } else if (sinal.tipo === "answer") {
+          const desc = JSON.parse(sinal.conteudo) as RTCSessionDescriptionInit;
+          await peer.setRemoteDescription(desc);
+        } else if (sinal.tipo === "ice") {
+          const candidate = JSON.parse(sinal.conteudo) as RTCIceCandidateInit;
+          await peer.addIceCandidate(candidate).catch(() => {});
+        }
       }
+    } catch {
+      // Silencioso - sinais podem falhar se ainda não há peer
     }
   }, []);
 
@@ -258,6 +307,14 @@ export function useChamadaVoz({
         // Garantir que o modal de recebida está fechado
         setChamadaEntrada(null);
 
+        // Timeout de chamada não atendida: agenda enquanto A_CHAMAR (chamador)
+        // e limpa quando a chamada passa a EM_CURSO (foi atendida).
+        if (souChamador) {
+          agendarTimeoutNaoAtendida(ativa);
+        } else if (ativa.estado === "EM_CURSO") {
+          limparTimeoutNaoAtendida();
+        }
+
         if (!chamadaEmCursoRef.current) {
           chamadaEmCursoRef.current = true;
           setEmCurso(true);
@@ -287,7 +344,7 @@ export function useChamadaVoz({
     } catch {
       // Silencioso
     }
-  }, [currentUserId, configurarPeer, processarSinais, finalizarPeer]);
+}, [currentUserId, configurarPeer, processarSinais, finalizarPeer, agendarTimeoutNaoAtendida, limparTimeoutNaoAtendida]);
 
 // Polling único e unificado
   useEffect(() => {
@@ -298,9 +355,9 @@ export function useChamadaVoz({
       void sincronizarEstado();
     }, 0);
 
-    const intervalo = setInterval(() => {
+const intervalo = setInterval(() => {
       void sincronizarEstado();
-    }, 3000);
+    }, 1200);
 
     return () => {
       clearTimeout(primeiro);
@@ -321,12 +378,16 @@ export function useChamadaVoz({
 
       // Reset da sinalização para a nova chamada
       ultimoSinalIdRef.current = 0;
+      sinaisProcessadosRef.current = new Set();
 
       setChamadaEntrada(null);
       setChamadaAtiva(chamada);
       chamadaAtivaRef.current = chamada;
       chamadaEmCursoRef.current = true;
       setEmCurso(true);
+
+      // Timeout de chamada não atendida (sou o chamador)
+      agendarTimeoutNaoAtendida(chamada);
 
       // Configurar peer como chamador
       const peer = await configurarPeer(true);
@@ -337,11 +398,11 @@ export function useChamadaVoz({
         tipo: "offer",
         conteudo: JSON.stringify(peer.localDescription),
       });
-    },
-    [configurarPeer]
-  );
+      },
+      [configurarPeer, agendarTimeoutNaoAtendida]
+    );
 
-  const aceitar = useCallback(async () => {
+const aceitar = useCallback(async () => {
     if (!chamadaEntrada) return;
 
     const chamada = await aceitarChamada(chamadaEntrada.id);
@@ -351,36 +412,74 @@ export function useChamadaVoz({
     chamadaEmCursoRef.current = true;
     setEmCurso(true);
 
+    // Sou o receptor: não há timeout local de não atendida (o chamador gere).
+    limparTimeoutNaoAtendida();
+
     // Reset da sinalização para a nova chamada
     ultimoSinalIdRef.current = 0;
+    sinaisProcessadosRef.current = new Set();
 
     // Configurar peer como receptor (sem criar offer, aguardar a do chamador)
     await configurarPeer(true);
+
+    // Processar a offer do chamador IMEDIATAMENTE (não esperar o próximo poll)
+    // para estabelecer a conexão WebRTC rapidamente e evitar timeout/falha.
+    try {
+      const sinais = await obterSinaisVoip(chamada.id, 0);
+      for (const sinal of sinais) {
+        ultimoSinalIdRef.current = Math.max(ultimoSinalIdRef.current, sinal.id);
+        if (sinaisProcessadosRef.current.has(sinal.id)) continue;
+        sinaisProcessadosRef.current.add(sinal.id);
+
+        const peer = peerRef.current;
+        if (!peer) continue;
+
+        if (sinal.tipo === "offer") {
+          const desc = JSON.parse(sinal.conteudo) as RTCSessionDescriptionInit;
+          await peer.setRemoteDescription(desc);
+          const answer = await peer.createAnswer();
+          await peer.setLocalDescription(answer);
+          await enviarSinalVoip({
+            chamadaId: chamada.id,
+            tipo: "answer",
+            conteudo: JSON.stringify(peer.localDescription),
+          });
+        } else if (sinal.tipo === "ice") {
+          const candidate = JSON.parse(sinal.conteudo) as RTCIceCandidateInit;
+          await peer.addIceCandidate(candidate).catch(() => {});
+        }
+      }
+    } catch {
+      // Silencioso - se a offer ainda não chegou, o poll vai tratar
+    }
   }, [chamadaEntrada, configurarPeer]);
 
   const recusar = useCallback(async () => {
     if (!chamadaEntrada) return;
     await rejeitarChamada(chamadaEntrada.id);
+    limparTimeoutNaoAtendida();
     setChamadaEntrada(null);
-  }, [chamadaEntrada]);
+  }, [chamadaEntrada, limparTimeoutNaoAtendida]);
 
   const terminar = useCallback(async () => {
     if (!chamadaAtiva) return;
     await terminarChamada(chamadaAtiva.id).catch(() => {});
+    limparTimeoutNaoAtendida();
     finalizarPeer();
     setChamadaAtiva(null);
     chamadaAtivaRef.current = null;
     chamadaEmCursoRef.current = false;
-  }, [chamadaAtiva, finalizarPeer]);
+  }, [chamadaAtiva, finalizarPeer, limparTimeoutNaoAtendida]);
 
   const cancelar = useCallback(async () => {
     if (!chamadaAtiva) return;
     await cancelarChamada(chamadaAtiva.id).catch(() => {});
+    limparTimeoutNaoAtendida();
     finalizarPeer();
     setChamadaAtiva(null);
     chamadaAtivaRef.current = null;
     chamadaEmCursoRef.current = false;
-  }, [chamadaAtiva, finalizarPeer]);
+  }, [chamadaAtiva, finalizarPeer, limparTimeoutNaoAtendida]);
 
   const alternarMicrofone = useCallback(() => {
     setMicrofoneMudo((prev) => {

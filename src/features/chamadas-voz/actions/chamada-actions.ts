@@ -228,6 +228,8 @@ export async function rejeitarChamada(chamadaId: number) {
 
 /**
  * Termina uma chamada ativa.
+ * Se a chamada ainda estiver "A_CHAMAR" (ninguém atendeu), passa a
+ * "NAO_ATENDIDA" (missed call, estilo WhatsApp) em vez de "TERMINADA".
  */
 export async function terminarChamada(chamadaId: number) {
   await autorizar("chat", "criar");
@@ -253,13 +255,53 @@ export async function terminarChamada(chamadaId: number) {
     duracaoSeg = Math.floor((agora.getTime() - chamada.aceiteEm.getTime()) / 1000);
   }
 
+  // Estilo WhatsApp: se a chamada nunca foi atendida, registar como
+  // "NAO_ATENDIDA" (missed call) em vez de "TERMINADA".
+  const chamadaNaoAtendida = chamada.estado === "A_CHAMAR";
+
   const atualizada = await prisma.chamadaVoz.update({
     where: { id: chamadaId },
     data: {
-      estado: "TERMINADA",
+      estado: chamadaNaoAtendida ? "NAO_ATENDIDA" : "TERMINADA",
       terminadoEm: agora,
       duracaoSeg,
-      motivoFim: chamada.estado === "A_CHAMAR" ? "Nao atendida" : "Chamada terminada",
+      motivoFim: chamadaNaoAtendida ? "Nao atendida" : "Chamada terminada",
+    },
+    include: {
+      chamador: { select: { id: true, nome: true, role: true, ultimoVisto: true } },
+      receptor: { select: { id: true, nome: true, role: true, ultimoVisto: true } },
+    },
+  });
+
+  revalidatePath("/chat");
+  return serializarChamada(atualizada);
+}
+
+/**
+ * Marca uma chamada "A_CHAMAR" como "NAO_ATENDIDA" (missed call).
+ * Utilizado pelo timeout automático de chamada não atendida e pelo
+ * fecho da chamada a partir do lado do chamador quando ninguém atende.
+ */
+export async function marcarNaoAtendida(chamadaId: number) {
+  await autorizar("chat", "criar");
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Nao autenticado");
+  const userId = Number(session.user.id);
+
+  const chamada = await prisma.chamadaVoz.findUnique({
+    where: { id: chamadaId },
+  });
+
+  if (!chamada) throw new Error("Chamada nao encontrada");
+  if (chamada.chamadorId !== userId) throw new Error("Nao foi o chamador");
+  if (chamada.estado !== "A_CHAMAR") throw new Error("Chamada ja foi processada");
+
+  const atualizada = await prisma.chamadaVoz.update({
+    where: { id: chamadaId },
+    data: {
+      estado: "NAO_ATENDIDA",
+      terminadoEm: new Date(),
+      motivoFim: "Chamada nao atendida (timeout)",
     },
     include: {
       chamador: { select: { id: true, nome: true, role: true, ultimoVisto: true } },
@@ -301,7 +343,7 @@ export async function cancelarChamada(chamadaId: number) {
     },
   });
 
-  revalidatePath("/chat");
+revalidatePath("/chat");
   return serializarChamada(atualizada);
 }
 
