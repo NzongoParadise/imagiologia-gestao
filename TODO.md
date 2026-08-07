@@ -17,5 +17,5 @@ Implementar todas as funcionalidades WhatsApp na parte de chamadas de voz:
 - [x] 4. UI do modal: botão altifalante
 - [x] 5. Página `/chamadas` com abas (cliente)
 - [x] 6. Menu lateral "Chamadas" + permissões
-- [ ] 7. Validação `npx tsc --noEmit` + build
-- [ ] 8. Commit e push
+- [x] 7. Validação `npx tsc --noEmit` + build
+- [x] 8. Commit e push
