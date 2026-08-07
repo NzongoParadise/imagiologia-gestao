@@ -28,6 +28,18 @@ HeartPulse,
   GitCompareArrows,
   BellRing,
   Phone,
+BrainCircuit,
+  Timeline,
+  Activity,
+  ScanSearch,
+  Database,
+  AlertOctagon,
+  Map,
+  TrendingUp,
+  FileSearch,
+  UsersRound,
+  FlaskConical,
+  Bot,
 } from "lucide-react";
 
 const menuItems = [
@@ -51,8 +63,24 @@ const menuItems = [
   { href: "/medico/solicitar", label: "Solicitar Exame", icon: ClipboardPlus },
   { href: "/medico/acompanhamento", label: "Acompanhamento", icon: History },
   { href: "/medico/comparar", label: "Comparar Exames", icon: GitCompareArrows },
-  { href: "/medico/agenda", label: "Agenda", icon: Calendar },
+{ href: "/medico/agenda", label: "Agenda", icon: Calendar },
   { href: "/medico/notificacoes", label: "Notificações", icon: BellRing },
+
+  // Portal Médico Cognitivo
+  { href: "/cognitivo", label: "Dashboard Cognitivo", icon: BrainCircuit },
+  { href: "/cognitivo/linha-temporal", label: "Linha Temporal", icon: Timeline },
+  { href: "/cognitivo/digital-twin", label: "Digital Twin", icon: Activity },
+{ href: "/cognitivo/evolucao", label: "Evolução Radiológica", icon: GitCompareArrows },
+  { href: "/cognitivo/detector-mudancas", label: "Detector de Mudanças", icon: ScanSearch },
+  { href: "/cognitivo/assistente", label: "Assistente Explicável", icon: Stethoscope },
+  { href: "/cognitivo/memoria-clinica", label: "Memória Clínica", icon: Database },
+  { href: "/cognitivo/contradicoes", label: "Contradições", icon: AlertOctagon },
+  { href: "/cognitivo/radar-epidemiologico", label: "Radar Epidemiológico", icon: Map },
+  { href: "/cognitivo/previsao", label: "Previsão Inteligente", icon: TrendingUp },
+  { href: "/cognitivo/segunda-opiniao", label: "Segunda Opinião", icon: FileSearch },
+  { href: "/cognitivo/reunioes", label: "Reunião Clínica", icon: UsersRound },
+  { href: "/cognitivo/pesquisa", label: "Pesquisa Científica", icon: FlaskConical },
+  { href: "/cognitivo/ia-generativa", label: "IA Generativa", icon: Bot },
 ];
 
 const sidebarVariants = {

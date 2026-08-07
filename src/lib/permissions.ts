@@ -29,7 +29,8 @@ export type Modulo =
   | "configuracoes"
   | "historico"
   | "chat"
-  | "medico";
+  | "medico"
+  | "cognitivo";
 
 export type Acao = "ver" | "criar" | "editar" | "eliminar";
 
@@ -103,13 +104,17 @@ const PERMISSOES: Record<Role, PermissaoString[]> = {
     "chat.criar",
   ],
 
-  MEDICO: [
+MEDICO: [
     // Dashboard
     "dashboard.ver",
     // Portal do Médico
     "medico.ver",
     "medico.criar",
     "medico.editar",
+    // Portal Médico Cognitivo
+    "cognitivo.ver",
+    "cognitivo.criar",
+    "cognitivo.editar",
     // Pacientes (consulta)
     "pacientes.ver",
     // Exames (solicitar/consultar)
@@ -172,5 +177,20 @@ export const MENU_MODULOS: Record<string, Modulo> = {
   "/medico/notificacoes": "medico",
   "/medico/exames": "medico",
   "/medico/pacientes": "medico",
+  // Portal Médico Cognitivo
+  "/cognitivo": "cognitivo",
+  "/cognitivo/linha-temporal": "cognitivo",
+  "/cognitivo/digital-twin": "cognitivo",
+  "/cognitivo/evolucao": "cognitivo",
+  "/cognitivo/detector-mudancas": "cognitivo",
+  "/cognitivo/assistente": "cognitivo",
+  "/cognitivo/memoria-clinica": "cognitivo",
+  "/cognitivo/contradicoes": "cognitivo",
+  "/cognitivo/radar-epidemiologico": "cognitivo",
+  "/cognitivo/previsao": "cognitivo",
+  "/cognitivo/segunda-opiniao": "cognitivo",
+  "/cognitivo/reunioes": "cognitivo",
+  "/cognitivo/pesquisa": "cognitivo",
+  "/cognitivo/ia-generativa": "cognitivo",
 };
 
