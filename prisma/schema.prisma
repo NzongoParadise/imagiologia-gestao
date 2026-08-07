@@ -8,52 +8,63 @@ datasource db {
 }
 
 model Utilizador {
-  id                Int                    @id @default(autoincrement())
-  nome              String
-  email             String                 @unique
-  password          String
-  role              String                 @default("TECNICO")
-  ativo             Boolean                @default(true)
-  ultimoVisto       DateTime?              @map("ultimo_visto")
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
-  historico         Historico[]
-  exames            Exame[]                @relation("ExamesRealizados")
-  examesSolicitados Exame[]                @relation("ExamesSolicitados")
-  laudosAssinados   Laudo[]                @relation("LaudosAssinados")
-  notificacoes      Notificacao[]
-  anotacoes         Anotacao[]
-  turnosCriados     Turno[]                @relation("TurnosCriados")
-  conversasCriadas  Conversa[]             @relation("ConversasCriadas")
-  participacoes     ConversaParticipante[]
-  mensagens         Mensagem[]
-  backups           Backup[]
-  chamadasFeitas    ChamadaVoz[]           @relation("ChamadasFeitas")
-  chamadasRecebidas ChamadaVoz[]           @relation("ChamadasRecebidas")
-  sinaisVoip        SinalVoip[]
-  analisesIA        AnaliseIA[]
+  id                          Int                    @id @default(autoincrement())
+  nome                        String
+  email                       String                 @unique
+  password                    String
+  role                        String                 @default("TECNICO")
+  ativo                       Boolean                @default(true)
+  ultimoVisto                 DateTime?              @map("ultimo_visto")
+  createdAt                   DateTime               @default(now())
+  updatedAt                   DateTime               @updatedAt
+  historico                   Historico[]
+  exames                      Exame[]                @relation("ExamesRealizados")
+  examesSolicitados           Exame[]                @relation("ExamesSolicitados")
+  laudosAssinados             Laudo[]                @relation("LaudosAssinados")
+  notificacoes                Notificacao[]
+  anotacoes                   Anotacao[]
+  turnosCriados               Turno[]                @relation("TurnosCriados")
+  conversasCriadas            Conversa[]             @relation("ConversasCriadas")
+  participacoes               ConversaParticipante[]
+  mensagens                   Mensagem[]
+  backups                     Backup[]
+  chamadasFeitas              ChamadaVoz[]           @relation("ChamadasFeitas")
+  chamadasRecebidas           ChamadaVoz[]           @relation("ChamadasRecebidas")
+  sinaisVoip                  SinalVoip[]
+  analisesIA                  AnaliseIA[]
+  comparacoesCriadas          ComparacaoExame[]
+  contradicoesCriadas         Contradicao[]          @relation("ContradicaoCriador")
+  contradicoesResolvidas      Contradicao[]          @relation("ContradicaoResolver")
+  segundasOpinioesSolicitadas SegundaOpiniao[]       @relation("SegundaOpiniaoSolicitante")
+  segundasOpinioesAnalisadas  SegundaOpiniao[]       @relation("SegundaOpiniaoRadiologista")
+  predicoesCriadas            PredicaoServico[]
+  sessoesIA                   SessaoIA[]
+  reunioesCriadas             ReuniaoClinica[]
+  reuniaoParticipacoes        ReuniaoParticipante[]
+  reuniaoDecisoes             ReuniaoDecisao[]
 }
 
 model Paciente {
-  id             Int           @id @default(autoincrement())
-  numeroProcesso String        @unique @map("numero_processo")
+  id             Int              @id @default(autoincrement())
+  numeroProcesso String           @unique @map("numero_processo")
   nome           String
-  dataNascimento DateTime?     @map("data_nascimento")
-  sexo           String?       @map("sexo")
+  dataNascimento DateTime?        @map("data_nascimento")
+  sexo           String?          @map("sexo")
   telefone       String?
   email          String?
-  endereco       String?       @map("endereco")
-  documento      String?       @map("documento")
+  endereco       String?          @map("endereco")
+  documento      String?          @map("documento")
   nif            String?
   bi             String?
   foto           String?
   observacoes    String?
-  createdAt      DateTime      @default(now()) @map("criado_em")
-  updatedAt      DateTime      @updatedAt @map("atualizado_em")
+  createdAt      DateTime         @default(now()) @map("criado_em")
+  updatedAt      DateTime         @updatedAt @map("atualizado_em")
   exames         Exame[]
   historico      Historico[]
   notificacoes   Notificacao[]
   anotacoes      Anotacao[]
+  reunioes       ReuniaoClinica[]
 
   @@map("pacientes")
 }
@@ -111,20 +122,28 @@ model Exame {
   createdAt           DateTime @default(now()) @map("criado_em")
   updatedAt           DateTime @updatedAt @map("atualizado_em")
 
-  paciente        Paciente      @relation(fields: [pacienteId], references: [id])
-  tipoExame       TipoExame     @relation(fields: [tipoExameId], references: [id])
-  tecnico         Tecnico?      @relation(fields: [tecnicoId], references: [id])
-  procedencia     Procedencia?  @relation(fields: [procedenciaId], references: [id])
-  realizadoPor    Utilizador?   @relation("ExamesRealizados", fields: [realizadoPorId], references: [id])
-  realizadoPorId  Int?          @map("realizado_por_id")
-  solicitadoPor   Utilizador?   @relation("ExamesSolicitados", fields: [solicitadoPorId], references: [id])
-  solicitadoPorId Int?          @map("solicitado_por_id")
-  laudos          Laudo[]
-  imagens         Imagem[]
-  historico       Historico[]
-  notificacoes    Notificacao[]
-  anotacoes       Anotacao[]
-  analisesIA      AnaliseIA[]
+  paciente            Paciente          @relation(fields: [pacienteId], references: [id])
+  tipoExame           TipoExame         @relation(fields: [tipoExameId], references: [id])
+  tecnico             Tecnico?          @relation(fields: [tecnicoId], references: [id])
+  procedencia         Procedencia?      @relation(fields: [procedenciaId], references: [id])
+  realizadoPor        Utilizador?       @relation("ExamesRealizados", fields: [realizadoPorId], references: [id])
+  realizadoPorId      Int?              @map("realizado_por_id")
+  solicitadoPor       Utilizador?       @relation("ExamesSolicitados", fields: [solicitadoPorId], references: [id])
+  solicitadoPorId     Int?              @map("solicitado_por_id")
+  laudos              Laudo[]
+  imagens             Imagem[]
+  historico           Historico[]
+  notificacoes        Notificacao[]
+  anotacoes           Anotacao[]
+  analisesIA          AnaliseIA[]
+  regioes             ExameRegiao[]
+  comparacoesBase     ComparacaoExame[] @relation("ComparacaoBase")
+  comparacoesVar      ComparacaoExame[] @relation("ComparacaoComparado")
+  casosClinicos       CasoClinico[]
+  contradicoes        Contradicao[]
+  indicadores         IndicadorRegiao[]
+  segundasOpinioes    SegundaOpiniao[]
+  reunioesPartilhadas ReuniaoExame[]
 
   @@index([pacienteId])
   @@index([tipoExameId])
@@ -356,21 +375,21 @@ model Backup {
 // ---------------------------------------------------------------------------
 
 model ChamadaVoz {
-  id           Int         @id @default(autoincrement())
-  chamadorId   Int         @map("chamador_id")
-  receptorId   Int         @map("receptor_id")
-  conversaId   Int?        @map("conversa_id")
-  estado       String      @default("A_CHAMAR") // A_CHAMAR | EM_CURSO | TERMINADA | REJEITADA | NAO_ATENDIDA | CANCELADA
-  iniciadoEm   DateTime    @default(now()) @map("iniciado_em")
-  aceiteEm     DateTime?   @map("aceite_em")
-  terminadoEm  DateTime?   @map("terminado_em")
-  duracaoSeg   Int         @default(0) @map("duracao_seg")
-  motivoFim    String?     @map("motivo_fim")
+  id          Int       @id @default(autoincrement())
+  chamadorId  Int       @map("chamador_id")
+  receptorId  Int       @map("receptor_id")
+  conversaId  Int?      @map("conversa_id")
+  estado      String    @default("A_CHAMAR") // A_CHAMAR | EM_CURSO | TERMINADA | REJEITADA | NAO_ATENDIDA | CANCELADA
+  iniciadoEm  DateTime  @default(now()) @map("iniciado_em")
+  aceiteEm    DateTime? @map("aceite_em")
+  terminadoEm DateTime? @map("terminado_em")
+  duracaoSeg  Int       @default(0) @map("duracao_seg")
+  motivoFim   String?   @map("motivo_fim")
 
-  chamador  Utilizador  @relation("ChamadasFeitas", fields: [chamadorId], references: [id])
-  receptor  Utilizador  @relation("ChamadasRecebidas", fields: [receptorId], references: [id])
-  conversa  Conversa?   @relation(fields: [conversaId], references: [id], onDelete: SetNull)
-  sinais    SinalVoip[]
+  chamador Utilizador  @relation("ChamadasFeitas", fields: [chamadorId], references: [id])
+  receptor Utilizador  @relation("ChamadasRecebidas", fields: [receptorId], references: [id])
+  conversa Conversa?   @relation(fields: [conversaId], references: [id], onDelete: SetNull)
+  sinais   SinalVoip[]
 
   @@index([chamadorId])
   @@index([receptorId])
@@ -380,16 +399,319 @@ model ChamadaVoz {
 }
 
 model SinalVoip {
-  id            Int      @id @default(autoincrement())
-  chamadaId     Int      @map("chamada_id")
-  utilizadorId  Int      @map("utilizador_id")
-  tipo          String   // offer | answer | ice
-  conteudo      String   // JSON com SDP ou ICE candidate
-  createdAt     DateTime @default(now()) @map("criado_em")
+  id           Int      @id @default(autoincrement())
+  chamadaId    Int      @map("chamada_id")
+  utilizadorId Int      @map("utilizador_id")
+  tipo         String // offer | answer | ice
+  conteudo     String // JSON com SDP ou ICE candidate
+  createdAt    DateTime @default(now()) @map("criado_em")
 
-  chamada   ChamadaVoz @relation(fields: [chamadaId], references: [id], onDelete: Cascade)
+  chamada    ChamadaVoz @relation(fields: [chamadaId], references: [id], onDelete: Cascade)
   utilizador Utilizador @relation(fields: [utilizadorId], references: [id])
 
   @@index([chamadaId, createdAt])
   @@map("sinais_voip")
+}
+
+// ===========================================================================
+// PORTAL MÉDICO COGNITIVO — Módulos de Inteligência Clínica
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// Regiões Anatómicas (Digital Twin Radiológico)
+// ---------------------------------------------------------------------------
+model RegiaoAnatomica {
+  id          Int               @id @default(autoincrement())
+  nome        String
+  nomePT      String            @map("nome_pt") // Nome em português para UI
+  grupo       String            @default("geral") // cabeca | torax | abdomen | pelve | membros | coluna
+  ordem       Int               @default(0)
+  riscoBase   Int               @default(0) // 0-100 indicador de risco
+  descricao   String?
+  icone       String?
+  ativo       Boolean           @default(true)
+  createdAt   DateTime          @default(now()) @map("criado_em")
+  exames      ExameRegiao[]
+  indicadores IndicadorRegiao[]
+  comparacoes ComparacaoExame[]
+  casos       CasoClinico[]
+
+  @@index([grupo])
+  @@index([ordem])
+  @@map("regioes_anatomicas")
+}
+
+model IndicadorRegiao {
+  id         Int      @id @default(autoincrement())
+  regiaoId   Int      @map("regiao_id")
+  tipo       String // risco | evolucao | volume | densidade
+  valor      Float
+  nivel      String   @default("normal") // normal | alerta | critico
+  observacao String?
+  medidoEm   DateTime @default(now()) @map("medido_em")
+  exameId    Int?     @map("exame_id")
+
+  regiao RegiaoAnatomica @relation(fields: [regiaoId], references: [id], onDelete: Cascade)
+  exame  Exame?          @relation(fields: [exameId], references: [id])
+
+  @@index([regiaoId])
+  @@index([medidoEm])
+  @@map("indicadores_regiao")
+}
+
+model ExameRegiao {
+  id        Int      @id @default(autoincrement())
+  exameId   Int      @map("exame_id")
+  regiaoId  Int      @map("regiao_id")
+  createdAt DateTime @default(now()) @map("criado_em")
+
+  exame  Exame           @relation(fields: [exameId], references: [id], onDelete: Cascade)
+  regiao RegiaoAnatomica @relation(fields: [regiaoId], references: [id], onDelete: Cascade)
+
+  @@unique([exameId, regiaoId])
+  @@index([regiaoId])
+  @@map("examens_regioes")
+}
+
+// ---------------------------------------------------------------------------
+// Comparação Radiológica (Evolução + Detector de Mudanças)
+// ---------------------------------------------------------------------------
+model ComparacaoExame {
+  id            Int      @id @default(autoincrement())
+  exameBaseId   Int      @map("exame_base_id")
+  exameComparar Int      @map("exame_comparado_id")
+  regiaoId      Int?     @map("regiao_id")
+  tipo          String   @default("evolucao") // evolucao | mudanca | followup
+  resultadoJson Json     @map("resultado_json") // regiões, diferenças, medidas
+  conclusao     String?
+  novasLesoes   Int      @default(0) @map("novas_lesoes")
+  regressao     Int      @default(0)
+  progressao    Int      @default(0)
+  estabilidade  Int      @default(0)
+  criadoPorId   Int?     @map("criado_por_id")
+  createdAt     DateTime @default(now()) @map("criado_em")
+
+  exameBase Exame            @relation("ComparacaoBase", fields: [exameBaseId], references: [id], onDelete: Cascade)
+  exameVar  Exame            @relation("ComparacaoComparado", fields: [exameComparar], references: [id], onDelete: Cascade)
+  regiao    RegiaoAnatomica? @relation(fields: [regiaoId], references: [id])
+  criadoPor Utilizador?      @relation(fields: [criadoPorId], references: [id])
+
+  @@index([exameBaseId])
+  @@index([exameComparar])
+  @@index([criadoPorId])
+  @@map("comparacoes_exame")
+}
+
+// ---------------------------------------------------------------------------
+// Memória Clínica Hospitalar (casos semelhantes — ANONIMIZADOS)
+// ---------------------------------------------------------------------------
+model CasoClinico {
+  id                   Int      @id @default(autoincrement())
+  codigoAnonimo        String   @unique @map("codigo_anonimo") // ex: CASO-2026-0001
+  diagnosticoPrincipal String   @map("diagnostico_principal")
+  modalidade           String?
+  regiaoId             Int?     @map("regiao_id")
+  faixaEtaria          String?  @map("faixa_etaria") // armazenado, não idade exata
+  sexo                 String?
+  laudoResumo          String?  @map("laudo_resumo")
+  tratamento           String?
+  desfecho             String? // recuperado | complicacao | obito | em_tratamento
+  tempoRecuperacaoDias Int?     @map("tempo_recuperacao_dias")
+  confirmado           Boolean  @default(true)
+  descartado           Boolean  @default(false)
+  origemExameId        Int?     @map("origem_exame_id")
+  createdAt            DateTime @default(now()) @map("criado_em")
+
+  regiao      RegiaoAnatomica? @relation(fields: [regiaoId], references: [id])
+  origemExame Exame?           @relation(fields: [origemExameId], references: [id])
+
+  @@index([diagnosticoPrincipal])
+  @@index([modalidade])
+  @@index([regiaoId])
+  @@index([confirmado])
+  @@map("casos_clinicos")
+}
+
+// ---------------------------------------------------------------------------
+// Detector de Contradições (imagem x laudo x histórico)
+// ---------------------------------------------------------------------------
+model Contradicao {
+  id             Int       @id @default(autoincrement())
+  exameId        Int       @map("exame_id")
+  tipo           String // imagem_laudo | laudo_historico | diagnostico_imagem
+  severidade     String    @default("media") // baixa | media | alta | critica
+  descricao      String
+  detalheJson    Json?     @map("detalhe_json")
+  estado         String    @default("aberta") // aberta | confirmada | descartada | resolvida
+  criadoPorId    Int?      @map("criado_por_id")
+  resolvidoPorId Int?      @map("resolvido_por_id")
+  resolvidoEm    DateTime? @map("resolvido_em")
+  createdAt      DateTime  @default(now()) @map("criado_em")
+
+  exame        Exame       @relation(fields: [exameId], references: [id], onDelete: Cascade)
+  criadoPor    Utilizador? @relation("ContradicaoCriador", fields: [criadoPorId], references: [id])
+  resolvidoPor Utilizador? @relation("ContradicaoResolver", fields: [resolvidoPorId], references: [id])
+
+  @@index([exameId])
+  @@index([estado])
+  @@index([severidade])
+  @@map("contradicoes")
+}
+
+// ---------------------------------------------------------------------------
+// Segunda Opinião
+// ---------------------------------------------------------------------------
+model SegundaOpiniao {
+  id              Int       @id @default(autoincrement())
+  exameId         Int       @map("exame_id")
+  solicitadoPorId Int?      @map("solicitado_por_id")
+  radiologistaId  Int?      @map("radiologista_id")
+  motivo          String?
+  estado          String    @default("solicitada") // solicitada | em_analise | concluida | cancelada
+  laudoOriginal   String?   @map("laudo_original")
+  laudoSegunda    String?   @map("laudo_segunda")
+  coerente        Boolean?
+  conclusao       String?
+  solicitadoEm    DateTime  @default(now()) @map("solicitado_em")
+  concluidoEm     DateTime? @map("concluido_em")
+
+  exame         Exame       @relation(fields: [exameId], references: [id], onDelete: Cascade)
+  solicitadoPor Utilizador? @relation("SegundaOpiniaoSolicitante", fields: [solicitadoPorId], references: [id])
+  radiologista  Utilizador? @relation("SegundaOpiniaoRadiologista", fields: [radiologistaId], references: [id])
+
+  @@index([exameId])
+  @@index([estado])
+  @@map("segundas_opinioes")
+}
+
+// ---------------------------------------------------------------------------
+// Reunião Clínica (multidisciplinar + ata automática)
+// ---------------------------------------------------------------------------
+model ReuniaoClinica {
+  id          Int      @id @default(autoincrement())
+  titulo      String
+  pacienteId  Int?     @map("paciente_id")
+  descricao   String?
+  estado      String   @default("agendada") // agendada | em_curso | concluida | cancelada
+  dataHora    DateTime @map("data_hora")
+  ata         String? // ata gerada automaticamente
+  ataJson     Json?    @map("ata_json")
+  criadoPorId Int?     @map("criado_por_id")
+  createdAt   DateTime @default(now()) @map("criado_em")
+  updatedAt   DateTime @updatedAt @map("atualizado_em")
+
+  paciente          Paciente?             @relation(fields: [pacienteId], references: [id])
+  criadoPor         Utilizador?           @relation(fields: [criadoPorId], references: [id])
+  participantes     ReuniaoParticipante[]
+  decisoes          ReuniaoDecisao[]
+  examesPartilhados ReuniaoExame[]
+
+  @@index([pacienteId])
+  @@index([dataHora])
+  @@index([estado])
+  @@map("reunioes_clinicas")
+}
+
+model ReuniaoParticipante {
+  id           Int      @id @default(autoincrement())
+  reuniaoId    Int      @map("reuniao_id")
+  utilizadorId Int      @map("utilizador_id")
+  papel        String   @default("participante")
+  confirmado   Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("criado_em")
+
+  reuniao    ReuniaoClinica @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
+  utilizador Utilizador     @relation(fields: [utilizadorId], references: [id], onDelete: Cascade)
+
+  @@unique([reuniaoId, utilizadorId])
+  @@index([utilizadorId])
+  @@map("reuniao_participantes")
+}
+
+model ReuniaoDecisao {
+  id          Int       @id @default(autoincrement())
+  reuniaoId   Int       @map("reuniao_id")
+  autorId     Int?      @map("autor_id")
+  descricao   String
+  responsavel Int?
+  prazo       DateTime?
+  estado      String    @default("pendente") // pendente | concluida | cancelada
+  createdAt   DateTime  @default(now()) @map("criado_em")
+
+  reuniao ReuniaoClinica @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
+  autor   Utilizador?    @relation(fields: [autorId], references: [id])
+
+  @@index([reuniaoId])
+  @@index([estado])
+  @@map("reuniao_decisoes")
+}
+
+model ReuniaoExame {
+  id        Int      @id @default(autoincrement())
+  reuniaoId Int      @map("reuniao_id")
+  exameId   Int      @map("exame_id")
+  createdAt DateTime @default(now()) @map("criado_em")
+
+  reuniao ReuniaoClinica @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
+  exame   Exame          @relation(fields: [exameId], references: [id], onDelete: Cascade)
+
+  @@unique([reuniaoId, exameId])
+  @@map("reuniao_exames")
+}
+
+// ---------------------------------------------------------------------------
+// Previsão Inteligente (sobrecarga, fila, equipamentos, demanda)
+// ---------------------------------------------------------------------------
+model PredicaoServico {
+  id          Int      @id @default(autoincrement())
+  tipo        String // sobrecarga | fila | equipamento | ocupacao | tempo_espera | demanda
+  periodo     String // dia | semana | mes
+  parametros  Json?    @map("parametros")
+  resultado   Json     @map("resultado")
+  confianca   Float    @default(0)
+  modelo      String   @default("prophet-ts")
+  criadaPorId Int?     @map("criada_por_id")
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  criadaPor Utilizador? @relation(fields: [criadaPorId], references: [id])
+
+  @@index([tipo])
+  @@index([periodo])
+  @@index([criadoEm])
+  @@map("predicoes_servico")
+}
+
+// ---------------------------------------------------------------------------
+// Assistente Explicável / IA Generativa — sessões e mensagens
+// ---------------------------------------------------------------------------
+model SessaoIA {
+  id           Int      @id @default(autoincrement())
+  titulo       String   @default("Nova conversa")
+  tipo         String   @default("assistente") // assistente | generativa | pesquisa
+  utilizadorId Int?     @map("utilizador_id")
+  contextoJson Json?    @map("contexto_json")
+  createdAt    DateTime @default(now()) @map("criado_em")
+  updatedAt    DateTime @updatedAt @map("atualizado_em")
+
+  utilizador Utilizador?  @relation(fields: [utilizadorId], references: [id])
+  mensagens  MensagemIA[]
+
+  @@index([utilizadorId])
+  @@index([updatedAt])
+  @@map("sessoes_ia")
+}
+
+model MensagemIA {
+  id           Int      @id @default(autoincrement())
+  sessaoId     Int      @map("sessao_id")
+  papel        String   @default("utilizador") // utilizador | assistente
+  conteudo     String
+  contextoJson Json?    @map("contexto_json")
+  createdAt    DateTime @default(now()) @map("criado_em")
+
+  sessao SessaoIA @relation(fields: [sessaoId], references: [id], onDelete: Cascade)
+
+  @@index([sessaoId])
+  @@index([createdAt])
+  @@map("mensagens_ia")
 }
