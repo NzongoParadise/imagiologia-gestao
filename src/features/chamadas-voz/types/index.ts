@@ -61,3 +61,21 @@ export interface ChamadaDTO {
     ultimoVisto: string | null;
   };
 }
+
+/**
+ * Item de histórico de chamadas (estilo WhatsApp).
+ * A direção é calculada do ponto de vista do utilizador atual.
+ */
+export interface HistoricochamadaItem {
+  id: number;
+  outroUtilizadorId: number;
+  outroNome: string;
+  outroRole: string;
+  outroUltimoVisto: string | null;
+  estado: ChamadaEstado;
+  /** "FEITA" (saída), "RECEBIDA" (entrada) ou "PERDIDA" (missed) */
+  direcao: "FEITA" | "RECEBIDA" | "PERDIDA";
+  iniciadoEm: string;
+  duracaoSeg: number;
+  motivoFim: string | null;
+}

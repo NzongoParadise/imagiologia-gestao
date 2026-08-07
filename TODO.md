@@ -1,15 +1,21 @@
-# TODO — Fechar ciclo de chamada de voz (algoritmo WhatsApp)
+# TODO — Chamada de Voz com engenharia completa estilo WhatsApp
 
 ## Objetivo
-Completar a lógica de chamadas de voz com o ciclo de vida estilo WhatsApp, incluindo o estado `NAO_ATENDIDA` (missed call).
+Implementar todas as funcionalidades WhatsApp na parte de chamadas de voz:
+1. Histórico/página de chamadas (Todas / Perdidas / Feitas / Recebidas)
+2. Notificação push/do navegador (chamada recebida + missed call)
+3. Vibração/feedback háptico ao tocar
+4. Alternar altifalante (speaker) durante a chamada
+5. Manter ecrã ativo (Wake Lock) durante a chamada
+6. Presença online associada às chamadas
 
 ## Etapas
-
-- [ ] 1. `chamada-actions.ts`: marcar `NAO_ATENDIDA` em `terminarChamada` quando a chamada ainda está `A_CHAMAR`
-- [ ] 2. `chamada-actions.ts`: criar action `marcarNaoAtendida` (timeout/desistência do chamador)
-- [ ] 3. `use-chamada-voz.ts`: importar `marcarNaoAtendida` e corrigir indentação de `peerRef`
-- [ ] 4. `use-chamada-voz.ts`: adicionar timeout de 30s de chamada não atendida (só o chamador)
-- [ ] 5. `use-chamada-voz.ts`: limpar o timeout em aceitar/terminar/cancelar/finalizarPeer
-- [ ] 6. Validação com `npx tsc --noEmit` / `npm run build`
-- [ ] 7. Commit e push
-
+- [x] 0. Análise e plano
+- [x] 1. Tipos de histórico de chamadas (`types/index.ts`)
+- [x] 2. Server action `listarChamadas()` (histórico com direção feita/recebida/perdida)
+- [x] 3. Hook: vibração, wake lock, altifalante, notificações
+- [x] 4. UI do modal: botão altifalante
+- [x] 5. Página `/chamadas` com abas (cliente)
+- [x] 6. Menu lateral "Chamadas" + permissões
+- [ ] 7. Validação `npx tsc --noEmit` + build
+- [ ] 8. Commit e push

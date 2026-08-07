@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Phone, PhoneOff, Mic, MicOff, User } from "lucide-react";
+import { Phone, PhoneOff, Mic, MicOff, User, Volume2, VolumeX } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useChamadaVoz } from "../hooks/use-chamada-voz";
 import { TomChamada } from "./tom-chamada";
@@ -155,6 +155,22 @@ export function GestorChamadas() {
               <h2 className="text-xl font-bold">{nomeChamada}</h2>
               <p className="text-sm text-muted-foreground mt-1">{status}</p>
               <div className="mt-8 flex items-center justify-center gap-6">
+                <button
+                  onClick={() => chamada.alternarAltifalante()}
+                  className={`flex h-14 w-14 items-center justify-center rounded-full hover:scale-105 transition-transform ${
+                    chamada.altoFalante
+                      ? "bg-green-500 text-white hover:bg-green-600"
+                      : "bg-muted text-foreground hover:bg-muted/80"
+                  }`}
+                  aria-label={chamada.altoFalante ? "Desativar altifalante" : "Ativar altifalante"}
+                  title={chamada.altoFalante ? "Desativar altifalante" : "Ativar altifalante"}
+                >
+                  {chamada.altoFalante ? (
+                    <Volume2 className="h-6 w-6" />
+                  ) : (
+                    <VolumeX className="h-6 w-6" />
+                  )}
+                </button>
                 <button
                   onClick={() => chamada.alternarMicrofone()}
                   className={`flex h-14 w-14 items-center justify-center rounded-full hover:scale-105 transition-transform ${

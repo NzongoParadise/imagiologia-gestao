@@ -30,6 +30,8 @@ interface UseChamadaVozReturn {
   cancelar: () => Promise<void>;
   microfoneMudo: boolean;
   alternarMicrofone: () => void;
+  alternarAltifalante: () => void;
+  altoFalante: boolean;
   alertaSonoroRef: React.RefObject<HTMLAudioElement | null>;
 }
 
@@ -47,8 +49,11 @@ export function useChamadaVoz({
   const [chamadaEntrada, setChamadaEntrada] = useState<ChamadaDTO | null>(null);
   const [emCurso, setEmCurso] = useState(false);
   const [microfoneMudo, setMicrofoneMudo] = useState(false);
+  const [altoFalante, setAltoFalante] = useState(false);
 
   const peerRef = useRef<RTCPeerConnection | null>(null);
+  const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
+  const notificacaoAtivaRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ultimoSinalIdRef = useRef(0);
@@ -491,6 +496,109 @@ const aceitar = useCallback(async () => {
     });
   }, []);
 
+  // Alternar abrir altifalante / auscultador (engenharia WhatsApp).
+  // Em navegadores sem suporte a `setSinkId`, limitamo-nos a alternar a
+  // política de reprodução audio: se estiver ativo, força a saída default.
+  const alternarAltifalante = useCallback(() => {
+    setAltoFalante((prev) => {
+      const novo = !prev;
+      if (audioRef.current && "setSinkId" in audioRef.current) {
+        const setSink = (audioRef.current as HTMLAudioElement & {
+          setSinkId: (id: string) => Promise<void>;
+        }).setSinkId.bind(audioRef.current);
+        setSink(novo ? "" : "").catch(() => {});
+      }
+      return novo;
+    });
+  }, []);
+
+  // -------------------------------------------------------------------------
+  // Wake Lock: manter o ecrã ativo durante a chamada (engenharia WhatsApp).
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    let ativo = true;
+    async function adquirir() {
+      try {
+        const nav = navigator as Navigator & {
+          wakeLock?: { request: (t: string) => Promise<{ release: () => Promise<void> }> };
+        };
+        if (nav.wakeLock?.request) {
+          wakeLockRef.current = await nav.wakeLock.request("screen");
+        } else {
+          console.warn("Wake Lock API indisponível neste navegador");
+        }
+      } catch {
+        // Ignorar - o Wake Lock é uma otimização, não crítico
+      }
+    }
+    function liberar() {
+      void wakeLockRef.current?.release().catch(() => {});
+      wakeLockRef.current = null;
+    }
+    if (emCurso) {
+      void adquirir();
+    } else {
+      if (ativo) liberar();
+    }
+    return () => {
+      ativo = false;
+      liberar();
+    };
+  }, [emCurso]);
+
+  // -------------------------------------------------------------------------
+  // Vibração ao receber chamada (engenharia WhatsApp).
+  // Só funciona em dispositivos móveis com suporte a `navigator.vibrate`.
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+if (!chamadaEntrada) return;
+    const vibracao = (navigator as Navigator & { vibrate?: (p: number | number[]) => boolean });
+    if (typeof vibracao.vibrate === "function") {
+      const padrao: number[] = [];
+      for (let i = 0; i < 12; i++) padrao.push(i % 2 === 0 ? 400 : 200);
+      vibracao.vibrate(padrao);
+      return () => {
+        vibracao.vibrate?.(0);
+      };
+    }
+  }, [chamadaEntrada]);
+
+  // -------------------------------------------------------------------------
+  // Notificação de chamada recebida (engenharia WhatsApp) + missed call.
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    if (!chamadaEntrada || notificacaoAtivaRef.current) return;
+
+    notificacaoAtivaRef.current = true;
+    const limpar = () => {
+      notificacaoAtivaRef.current = false;
+    };
+
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "granted") {
+        try {
+          const n = new Notification("Chamada de voz", {
+            body: `${chamadaEntrada.chamador.nome} está a ligar-lhe...`,
+            tag: `chamada-${chamadaEntrada.id}`,
+          });
+          n.onclick = () => {
+            window.focus();
+            n.close();
+          };
+          const t = setTimeout(() => n.close(), 45000);
+          return () => {
+            clearTimeout(t);
+            n.close();
+            limpar();
+          };
+        } catch {
+          limpar();
+        }
+      }
+    }
+    limpar();
+  }, [chamadaEntrada]);
+
   return {
     chamadaAtiva,
     chamadaEntrada,
@@ -502,6 +610,8 @@ const aceitar = useCallback(async () => {
     cancelar,
     microfoneMudo,
     alternarMicrofone,
+    alternarAltifalante,
+    altoFalante,
     alertaSonoroRef,
   };
 }

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { autorizar } from "@/lib/permissions-server";
-import type { ChamadaDTO } from "../types";
+import type { ChamadaDTO, HistoricochamadaItem } from "../types";
 
 function serializarChamada(c: {
   id: number;
@@ -420,7 +420,7 @@ export async function obterSinaisVoip(chamadaId: number, ultimoId: number = 0) {
     orderBy: { createdAt: "asc" },
   });
 
-  return sinais.map((s) => ({
+return sinais.map((s) => ({
     id: s.id,
     chamadaId: s.chamadaId,
     utilizadorId: s.utilizadorId,
@@ -428,4 +428,61 @@ export async function obterSinaisVoip(chamadaId: number, ultimoId: number = 0) {
     conteudo: s.conteudo,
     createdAt: s.createdAt.toISOString(),
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Histórico de chamadas (estilo WhatsApp)
+// ---------------------------------------------------------------------------
+
+/**
+ * Lista o histórico de chamadas do utilizador atual (estilo WhatsApp).
+ * Cada item indica a direção (FEITA / RECEBIDA / PERDIDA) relativa ao
+ * utilizador autenticado.
+ */
+export async function listarChamadas(): Promise<HistoricochamadaItem[]> {
+  await autorizar("chat");
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Nao autenticado");
+  const userId = Number(session.user.id);
+
+  const chamadas = await prisma.chamadaVoz.findMany({
+    where: {
+      OR: [{ chamadorId: userId }, { receptorId: userId }],
+    },
+    orderBy: { iniciadoEm: "desc" },
+    take: 100,
+    include: {
+      chamador: { select: { id: true, nome: true, role: true, ultimoVisto: true } },
+      receptor: { select: { id: true, nome: true, role: true, ultimoVisto: true } },
+    },
+  });
+
+  return chamadas.map((c): HistoricochamadaItem => {
+    const souChamador = c.chamadorId === userId;
+    const outro = souChamador ? c.receptor : c.chamador;
+
+    // Determina a direção (estilo WhatsApp)
+    let direcao: HistoricochamadaItem["direcao"];
+    if (c.estado === "NAO_ATENDIDA" || c.estado === "CANCELADA") {
+      // Chamadas perdidas: não atendidas (recebidas) ou canceladas (feitas)
+      direcao = souChamador ? "FEITA" : "PERDIDA";
+    } else if (c.estado === "REJEITADA") {
+      direcao = souChamador ? "FEITA" : "PERDIDA";
+    } else {
+      direcao = souChamador ? "FEITA" : "RECEBIDA";
+    }
+
+    return {
+      id: c.id,
+      outroUtilizadorId: outro.id,
+      outroNome: outro.nome,
+      outroRole: outro.role,
+      outroUltimoVisto: outro.ultimoVisto?.toISOString() ?? null,
+      estado: c.estado as HistoricochamadaItem["estado"],
+      direcao,
+      iniciadoEm: c.iniciadoEm.toISOString(),
+      duracaoSeg: c.duracaoSeg,
+      motivoFim: c.motivoFim,
+    };
+  });
 }
