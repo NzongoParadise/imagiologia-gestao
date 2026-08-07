@@ -9,6 +9,7 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Calendar,
   Clock,
@@ -105,9 +106,13 @@ export function TurnosClient({ turnos, tecnicos }: TurnosClientProps) {
   const [submitting, setSubmitting] = useState(false);
   const [diaSelecionado, setDiaSelecionado] = useState<string | null>(null);
 
-  // Export state
+// Export state
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [exportando, setExportando] = useState<string | null>(null);
+
+  // Paginação dos turnos do dia selecionado
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   // Form state
   const [formData, setFormData] = useState({
@@ -306,9 +311,19 @@ export function TurnosClient({ turnos, tecnicos }: TurnosClientProps) {
     }
   }
 
-  const temFiltros = search || filtroTecnico || filtroEstado;
+const temFiltros = search || filtroTecnico || filtroEstado;
 
-  const turnosDiaSelecionado = diaSelecionado ? turnosPorDia[diaSelecionado] || [] : [];
+  const turnosDiaSelecionado = useMemo(
+    () => (diaSelecionado ? turnosPorDia[diaSelecionado] || [] : []),
+    [diaSelecionado, turnosPorDia]
+  );
+
+  const totalPagesTurnos = Math.max(1, Math.ceil(turnosDiaSelecionado.length / pageSize));
+  const paginaSeguraTurnos = Math.min(currentPage, totalPagesTurnos);
+  const turnosPaginados = useMemo(() => {
+    const inicio = (paginaSeguraTurnos - 1) * pageSize;
+    return turnosDiaSelecionado.slice(inicio, inicio + pageSize);
+  }, [turnosDiaSelecionado, paginaSeguraTurnos, pageSize]);
 
   async function handleExport(formato: string) {
     setExportando(formato);
@@ -606,8 +621,8 @@ export function TurnosClient({ turnos, tecnicos }: TurnosClientProps) {
                       </button>
                     )}
                   </div>
-                ) : (
-                  turnosDiaSelecionado.map((turno) => {
+) : (
+                  turnosPaginados.map((turno) => {
                     const TipoIcon = tiposTurnoConfig[turno.tipo]?.icon || Clock;
                     return (
                       <div
@@ -675,9 +690,19 @@ export function TurnosClient({ turnos, tecnicos }: TurnosClientProps) {
                         </div>
                       </div>
                     );
-                  })
+})
                 )}
               </div>
+
+              {turnosDiaSelecionado.length > pageSize && (
+                <Pagination
+                  currentPage={paginaSeguraTurnos}
+                  totalPages={totalPagesTurnos}
+                  total={turnosDiaSelecionado.length}
+                  onPageChange={setCurrentPage}
+                  pageSize={pageSize}
+                />
+              )}
             </motion.div>
           )}
 

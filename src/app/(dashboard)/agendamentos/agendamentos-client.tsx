@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { criarExame } from "@/server/actions/exames-actions";
 import { usePermissoes } from "@/hooks/use-permissoes";
+import { Pagination } from "@/components/ui/pagination";
 
 interface PacienteOption {
   id: number;
@@ -100,13 +101,15 @@ export function AgendamentosClient({
   tecnicos,
   procedencias,
 }: AgendamentosClientProps) {
-  const router = useRouter();
+const router = useRouter();
   const { pode } = usePermissoes();
   const [dataAtual, setDataAtual] = useState(new Date());
   const [search, setSearch] = useState("");
   const [filtroProcedencia, setFiltroProcedencia] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   // Modal de novo agendamento
   const [showNovoAgendamento, setShowNovoAgendamento] = useState(false);
@@ -527,25 +530,35 @@ export function AgendamentosClient({
             </button>
           </div>
 
-          <div className="divide-y">
-            {(examesPorDia[diaSelecionado] || []).length === 0 ? (
-              <div className="flex flex-col items-center py-8 text-muted-foreground">
-                <Calendar className="h-8 w-8 mb-2" />
-                <p className="text-sm">Nenhum exame agendado para este dia</p>
-                {pode("agendamentos", "criar") && (
-                  <button
-                    onClick={() => {
-                      setShowNovoAgendamento(true);
-                      setFormData((prev) => ({ ...prev, dataExame: diaSelecionado }));
-                    }}
-                    className="mt-2 text-xs font-medium text-primary hover:underline"
-                  >
-                    Agendar exame
-                  </button>
-                )}
-              </div>
-            ) : (
-              (examesPorDia[diaSelecionado] || []).map((exame) => (
+<div className="divide-y">
+            {(() => {
+              const examesDoDia = examesPorDia[diaSelecionado] || [];
+              const totalPages = Math.max(1, Math.ceil(examesDoDia.length / pageSize));
+              const paginaSegura = Math.min(currentPage, totalPages);
+              const inicio = (paginaSegura - 1) * pageSize;
+              const paginados = examesDoDia.slice(inicio, inicio + pageSize);
+
+              if (examesDoDia.length === 0) {
+                return (
+                  <div className="flex flex-col items-center py-8 text-muted-foreground">
+                    <Calendar className="h-8 w-8 mb-2" />
+                    <p className="text-sm">Nenhum exame agendado para este dia</p>
+                    {pode("agendamentos", "criar") && (
+                      <button
+                        onClick={() => {
+                          setShowNovoAgendamento(true);
+                          setFormData((prev) => ({ ...prev, dataExame: diaSelecionado }));
+                        }}
+                        className="mt-2 text-xs font-medium text-primary hover:underline"
+                      >
+                        Agendar exame
+                      </button>
+                    )}
+                  </div>
+                );
+              }
+
+              return paginados.map((exame) => (
                 <div
                   key={exame.id}
                   className={cn(
@@ -591,9 +604,17 @@ export function AgendamentosClient({
                     Ver detalhes
                   </button>
                 </div>
-              ))
-            )}
+              ));
+            })()}
           </div>
+
+          <Pagination
+            currentPage={Math.min(currentPage, Math.max(1, Math.ceil((examesPorDia[diaSelecionado] || []).length / pageSize)))}
+            totalPages={Math.max(1, Math.ceil((examesPorDia[diaSelecionado] || []).length / pageSize))}
+            total={(examesPorDia[diaSelecionado] || []).length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+          />
         </motion.div>
       )}
 

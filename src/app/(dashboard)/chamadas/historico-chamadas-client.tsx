@@ -260,7 +260,7 @@ export function HistoricoChamadasClient() {
           </AnimatePresence>
         )}
 
-        {!loading && filtradas.length > 0 && totalPages > 1 && (
+{!loading && (
           <Pagination
             currentPage={paginaSegura}
             totalPages={totalPages}

@@ -18,6 +18,7 @@ import {
 import { cn } from "@/utils/cn";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
+import { Pagination } from "@/components/ui/pagination";
 import Link from "next/link";
 import { MLAnalise } from "@/features/imagens/components/ml-analise";
 import { ModalRelatorioImagens } from "@/features/imagens/components/modal-relatorio-imagens";
@@ -51,6 +52,8 @@ export function ImagensClient({ imagens }: { imagens: ImagemItem[] }) {
   const [search, setSearch] = useState("");
   const [showRelatorio, setShowRelatorio] = useState(false);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 12;
 
 const [filtros, setFiltros] = useState<FiltrosState>({
     paciente: "",
@@ -142,7 +145,14 @@ const [filtros, setFiltros] = useState<FiltrosState>({
     }
 
     return result;
-  }, [imagens, search, filtros]);
+}, [imagens, search, filtros]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginaSegura = Math.min(currentPage, totalPages);
+  const paginadas = useMemo(() => {
+    const inicio = (paginaSegura - 1) * pageSize;
+    return filtered.slice(inicio, inicio + pageSize);
+  }, [filtered, paginaSegura, pageSize]);
 
   const temFiltrosAtivos = Object.values(filtros).some((v) => v !== "");
 
@@ -157,10 +167,12 @@ const limparFiltros = () => {
       tamanhoMax: "",
     });
     setSearch("");
+    setCurrentPage(1);
   };
 
   const atualizarFiltro = (chave: keyof FiltrosState, valor: string) => {
     setFiltros((prev) => ({ ...prev, [chave]: valor }));
+    setCurrentPage(1);
   };
 
   if (imagens.length === 0) {
@@ -243,9 +255,9 @@ const limparFiltros = () => {
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
           type="text"
-          placeholder="Pesquisar por nome, paciente, tipo de exame..."
+placeholder="Pesquisar por nome, paciente, tipo de exame..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
           className="w-full rounded-lg border bg-background py-2.5 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
         />
       </div>
@@ -418,10 +430,10 @@ const limparFiltros = () => {
         ))}
       </div>
 
-      {/* Tabela de imagens */}
+{/* Tabela de imagens */}
       <div className="rounded-xl border bg-card">
         <div className="divide-y">
-          {filtered.map((img) => (
+          {paginadas.map((img) => (
             <div
               key={img.id}
               className="flex items-center gap-4 px-5 py-3 hover:bg-muted/30 transition-colors"
@@ -469,8 +481,16 @@ const limparFiltros = () => {
                 </a>
               </div>
             </div>
-          ))}
+))}
         </div>
+
+        <Pagination
+          currentPage={paginaSegura}
+          totalPages={totalPages}
+          total={filtered.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+        />
       </div>
 
       {/* Resultados vazios com filtros */}

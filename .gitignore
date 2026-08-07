@@ -48,3 +48,6 @@ __pycache__/
 venv/
 ai-backend/.venv/
 *.egg-info/
+
+.vercel
+.env*

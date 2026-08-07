@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { formatDateTime, formatRelative } from "@/utils/format";
 import { cn } from "@/utils/cn";
 import { motion } from "framer-motion";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Search,
   Plus,
@@ -90,6 +91,8 @@ export function HistoricoClient({
   const [search, setSearch] = useState("");
   const [entidadeFilter, setEntidadeFilter] = useState("");
   const [acaoFilter, setAcaoFilter] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
 
   const filtered = useMemo(() => {
     return historico.filter((item) => {
@@ -100,13 +103,20 @@ export function HistoricoClient({
     });
   }, [historico, search, entidadeFilter, acaoFilter]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginaSegura = Math.min(currentPage, totalPages);
+  const paginadas = useMemo(() => {
+    const inicio = (paginaSegura - 1) * pageSize;
+    return filtered.slice(inicio, inicio + pageSize);
+  }, [filtered, paginaSegura, pageSize]);
+
   const entidades = [...new Set(historico.map((h) => h.entidade))];
   const acoes = [...new Set(historico.map((h) => h.acao))];
 
-  // Agrupar por data
+  // Agrupar por data (apenas os itens da página atual)
   const grouped = useMemo(() => {
     const groups: Record<string, HistoricoItem[]> = {};
-    filtered.forEach((item) => {
+    paginadas.forEach((item) => {
       const date = new Date(item.createdAt);
       const key = date.toLocaleDateString("pt-PT", {
         day: "numeric",
@@ -117,7 +127,7 @@ export function HistoricoClient({
       groups[key].push(item);
     });
     return groups;
-  }, [filtered]);
+  }, [paginadas]);
 
   const totalAcoes = porAcao.reduce((acc, a) => acc + a._count._all, 0);
   const totalEntidades = porEntidade.length;
@@ -193,14 +203,14 @@ export function HistoricoClient({
           <input
             type="text"
             placeholder="Pesquisar no histórico..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+value={search}
+            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
             className="w-full rounded-lg border bg-background py-2.5 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
           />
         </div>
         <select
-          value={entidadeFilter}
-          onChange={(e) => setEntidadeFilter(e.target.value)}
+value={entidadeFilter}
+          onChange={(e) => { setEntidadeFilter(e.target.value); setCurrentPage(1); }}
           className="rounded-lg border bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
         >
           <option value="">Todas as entidades</option>
@@ -209,8 +219,8 @@ export function HistoricoClient({
           ))}
         </select>
         <select
-          value={acaoFilter}
-          onChange={(e) => setAcaoFilter(e.target.value)}
+value={acaoFilter}
+          onChange={(e) => { setAcaoFilter(e.target.value); setCurrentPage(1); }}
           className="rounded-lg border bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
         >
           <option value="">Todas as ações</option>
@@ -347,12 +357,20 @@ export function HistoricoClient({
           </div>
         ))}
 
-        {Object.keys(grouped).length === 0 && (
+{Object.keys(grouped).length === 0 && (
           <div className="flex flex-col items-center py-16 text-muted-foreground">
             <History className="h-12 w-12 mb-3" />
             <p className="text-sm">Nenhum registo encontrado</p>
           </div>
         )}
+
+        <Pagination
+          currentPage={paginaSegura}
+          totalPages={totalPages}
+          total={filtered.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </motion.div>
   );
