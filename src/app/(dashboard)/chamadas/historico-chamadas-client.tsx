@@ -19,6 +19,7 @@ import {
   iniciarChamada,
 } from "@/features/chamadas-voz/actions/chamada-actions";
 import type { HistoricochamadaItem } from "@/features/chamadas-voz/types";
+import { Pagination } from "@/components/ui/pagination";
 
 type Aba = "todas" | "perdidas" | "feitas" | "recebidas";
 
@@ -34,6 +35,8 @@ export function HistoricoChamadasClient() {
   const [aba, setAba] = useState<Aba>("todas");
   const [loading, setLoading] = useState(true);
   const [aChamarId, setAChamarId] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const carregar = useCallback(async () => {
     try {
@@ -70,6 +73,18 @@ export function HistoricoChamadasClient() {
       return chamadas.filter((c) => c.direcao === "RECEBIDA");
     return chamadas;
   }, [chamadas, aba]);
+
+  const totalPages = Math.max(1, Math.ceil(filtradas.length / pageSize));
+  const paginaSegura = Math.min(currentPage, totalPages);
+  const paginadas = useMemo(() => {
+    const inicio = (paginaSegura - 1) * pageSize;
+    return filtradas.slice(inicio, inicio + pageSize);
+  }, [filtradas, paginaSegura, pageSize]);
+
+  function mudarAba(novaAba: Aba) {
+    setAba(novaAba);
+    setCurrentPage(1);
+  }
 
   async function ligarDeVolta(id: number) {
     if (aChamarId) return;
@@ -131,7 +146,7 @@ export function HistoricoChamadasClient() {
           return (
             <button
               key={a.chave}
-              onClick={() => setAba(a.chave)}
+              onClick={() => mudarAba(a.chave)}
               className={cn(
                 "relative -mb-px flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors",
                 ativo
@@ -178,7 +193,7 @@ export function HistoricoChamadasClient() {
         ) : (
           <AnimatePresence initial={false}>
             <div className="divide-y">
-              {filtradas.map((c, i) => {
+              {paginadas.map((c, i) => {
                 const DirecaoIcon = iconeDirecao(c.direcao);
                 const cor = corDirecao(c.direcao);
                 return (
@@ -243,6 +258,16 @@ export function HistoricoChamadasClient() {
               })}
             </div>
           </AnimatePresence>
+        )}
+
+        {!loading && filtradas.length > 0 && totalPages > 1 && (
+          <Pagination
+            currentPage={paginaSegura}
+            totalPages={totalPages}
+            total={filtradas.length}
+            onPageChange={setCurrentPage}
+            pageSize={pageSize}
+          />
         )}
       </div>
     </motion.div>
