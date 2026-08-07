@@ -30,12 +30,17 @@ interface UseChamadaVozReturn {
   cancelar: () => Promise<void>;
   microfoneMudo: boolean;
   alternarMicrofone: () => void;
+  alternarAltifalante: () => void;
+  altoFalante: boolean;
   alertaSonoroRef: React.RefObject<HTMLAudioElement | null>;
 }
 
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "stun:stun2.l.google.com:19302" },
+  { urls: "stun:stun3.l.google.com:19302" },
+  { urls: "stun:stun4.l.google.com:19302" },
 ];
 
 const ESTADOS_TERMINADAS = ["TERMINADA", "REJEITADA", "CANCELADA", "NAO_ATENDIDA"];
@@ -47,8 +52,11 @@ export function useChamadaVoz({
   const [chamadaEntrada, setChamadaEntrada] = useState<ChamadaDTO | null>(null);
   const [emCurso, setEmCurso] = useState(false);
   const [microfoneMudo, setMicrofoneMudo] = useState(false);
+  const [altoFalante, setAltoFalante] = useState(false);
 
   const peerRef = useRef<RTCPeerConnection | null>(null);
+  const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
+  const notificacaoAtivaRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ultimoSinalIdRef = useRef(0);
@@ -160,9 +168,12 @@ export function useChamadaVoz({
       });
 
 if (comOuvinte) {
-        // Elemento de áudio para ouvir o outro participante
-        const audioEl = document.createElement("audio");
+        // Elemento de áudio para ouvir o outro participante.
+        // playsInline + autoplay + volume para garantir reprodução em
+        // desktop e mobile (política de autoplay do browser).
+const audioEl = document.createElement("audio");
         audioEl.autoplay = true;
+        audioEl.volume = 1;
         audioEl.style.display = "none";
         document.body.appendChild(audioEl);
         audioRef.current = audioEl;
@@ -170,6 +181,7 @@ if (comOuvinte) {
         peer.ontrack = (event) => {
           if (audioRef.current && event.streams[0]) {
             audioRef.current.srcObject = event.streams[0];
+            audioRef.current.muted = false;
             // Reproduzir explicitamente (autoplay pode ser bloqueado pela política do browser)
             audioRef.current.play().catch(() => {});
           }
@@ -183,6 +195,20 @@ if (comOuvinte) {
             tipo: "ice",
             conteudo: JSON.stringify(event.candidate),
           }).catch(() => {});
+        }
+      };
+
+      peer.oniceconnectionstatechange = () => {
+        // Se a ligação ICE falhar, terminar a chamada (sem áudio).
+        if (
+          peer.iceConnectionState === "failed" ||
+          peer.iceConnectionState === "disconnected"
+        ) {
+          if (chamadaAtivaRef.current) {
+            void terminarChamada(chamadaAtivaRef.current.id).catch(() => {});
+          }
+          finalizarPeer();
+          setChamadaAtiva(null);
         }
       };
 
@@ -307,13 +333,20 @@ if (comOuvinte) {
         // Garantir que o modal de recebida está fechado
         setChamadaEntrada(null);
 
-        // Timeout de chamada não atendida: agenda enquanto A_CHAMAR (chamador)
+// Timeout de chamada não atendida: agenda enquanto A_CHAMAR (chamador)
         // e limpa quando a chamada passa a EM_CURSO (foi atendida).
         if (souChamador) {
           agendarTimeoutNaoAtendida(ativa);
         } else if (ativa.estado === "EM_CURSO") {
           limparTimeoutNaoAtendida();
         }
+
+        // Atualizar SEMPRE a chamada ativa no estado (refletir transição
+        // A_CHAMAR -> EM_CURSO), para que o chamador deixe de mostrar
+        // "A chamar..." quando o receptor atende. Era este o bug em que o
+        // emissor continuava a chamar e a voz não estabelecia.
+        setChamadaAtiva(ativa);
+        chamadaAtivaRef.current = ativa;
 
         if (!chamadaEmCursoRef.current) {
           chamadaEmCursoRef.current = true;
@@ -491,6 +524,109 @@ const aceitar = useCallback(async () => {
     });
   }, []);
 
+  // Alternar abrir altifalante / auscultador (engenharia WhatsApp).
+  // Em navegadores sem suporte a `setSinkId`, limitamo-nos a alternar a
+  // política de reprodução audio: se estiver ativo, força a saída default.
+  const alternarAltifalante = useCallback(() => {
+    setAltoFalante((prev) => {
+      const novo = !prev;
+      if (audioRef.current && "setSinkId" in audioRef.current) {
+        const setSink = (audioRef.current as HTMLAudioElement & {
+          setSinkId: (id: string) => Promise<void>;
+        }).setSinkId.bind(audioRef.current);
+        setSink(novo ? "" : "").catch(() => {});
+      }
+      return novo;
+    });
+  }, []);
+
+  // -------------------------------------------------------------------------
+  // Wake Lock: manter o ecrã ativo durante a chamada (engenharia WhatsApp).
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    let ativo = true;
+    async function adquirir() {
+      try {
+        const nav = navigator as Navigator & {
+          wakeLock?: { request: (t: string) => Promise<{ release: () => Promise<void> }> };
+        };
+        if (nav.wakeLock?.request) {
+          wakeLockRef.current = await nav.wakeLock.request("screen");
+        } else {
+          console.warn("Wake Lock API indisponível neste navegador");
+        }
+      } catch {
+        // Ignorar - o Wake Lock é uma otimização, não crítico
+      }
+    }
+    function liberar() {
+      void wakeLockRef.current?.release().catch(() => {});
+      wakeLockRef.current = null;
+    }
+    if (emCurso) {
+      void adquirir();
+    } else {
+      if (ativo) liberar();
+    }
+    return () => {
+      ativo = false;
+      liberar();
+    };
+  }, [emCurso]);
+
+  // -------------------------------------------------------------------------
+  // Vibração ao receber chamada (engenharia WhatsApp).
+  // Só funciona em dispositivos móveis com suporte a `navigator.vibrate`.
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+if (!chamadaEntrada) return;
+    const vibracao = (navigator as Navigator & { vibrate?: (p: number | number[]) => boolean });
+    if (typeof vibracao.vibrate === "function") {
+      const padrao: number[] = [];
+      for (let i = 0; i < 12; i++) padrao.push(i % 2 === 0 ? 400 : 200);
+      vibracao.vibrate(padrao);
+      return () => {
+        vibracao.vibrate?.(0);
+      };
+    }
+  }, [chamadaEntrada]);
+
+  // -------------------------------------------------------------------------
+  // Notificação de chamada recebida (engenharia WhatsApp) + missed call.
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    if (!chamadaEntrada || notificacaoAtivaRef.current) return;
+
+    notificacaoAtivaRef.current = true;
+    const limpar = () => {
+      notificacaoAtivaRef.current = false;
+    };
+
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "granted") {
+        try {
+          const n = new Notification("Chamada de voz", {
+            body: `${chamadaEntrada.chamador.nome} está a ligar-lhe...`,
+            tag: `chamada-${chamadaEntrada.id}`,
+          });
+          n.onclick = () => {
+            window.focus();
+            n.close();
+          };
+          const t = setTimeout(() => n.close(), 45000);
+          return () => {
+            clearTimeout(t);
+            n.close();
+            limpar();
+          };
+        } catch {
+          limpar();
+        }
+      }
+    }
+    limpar();
+  }, [chamadaEntrada]);
+
   return {
     chamadaAtiva,
     chamadaEntrada,
@@ -502,6 +638,8 @@ const aceitar = useCallback(async () => {
     cancelar,
     microfoneMudo,
     alternarMicrofone,
+    alternarAltifalante,
+    altoFalante,
     alertaSonoroRef,
   };
 }

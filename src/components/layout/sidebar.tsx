@@ -27,6 +27,7 @@ HeartPulse,
   History,
   GitCompareArrows,
   BellRing,
+  Phone,
 } from "lucide-react";
 
 const menuItems = [
@@ -41,7 +42,8 @@ const menuItems = [
   { href: "/procedencias", label: "Procedências", icon: Building2 },
   { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
   { href: "/utilizadores", label: "Utilizadores", icon: UserCog },
-  { href: "/historico", label: "Histórico", icon: History },
+{ href: "/historico", label: "Histórico", icon: History },
+  { href: "/chamadas", label: "Chamadas", icon: Phone },
   { href: "/configuracoes", label: "Configurações", icon: Settings },
 
   // Portal do Médico
