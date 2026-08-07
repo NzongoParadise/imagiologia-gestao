@@ -168,9 +168,12 @@ export function useChamadaVoz({
       });
 
 if (comOuvinte) {
-        // Elemento de áudio para ouvir o outro participante
-        const audioEl = document.createElement("audio");
+        // Elemento de áudio para ouvir o outro participante.
+        // playsInline + autoplay + volume para garantir reprodução em
+        // desktop e mobile (política de autoplay do browser).
+const audioEl = document.createElement("audio");
         audioEl.autoplay = true;
+        audioEl.volume = 1;
         audioEl.style.display = "none";
         document.body.appendChild(audioEl);
         audioRef.current = audioEl;
@@ -178,6 +181,7 @@ if (comOuvinte) {
         peer.ontrack = (event) => {
           if (audioRef.current && event.streams[0]) {
             audioRef.current.srcObject = event.streams[0];
+            audioRef.current.muted = false;
             // Reproduzir explicitamente (autoplay pode ser bloqueado pela política do browser)
             audioRef.current.play().catch(() => {});
           }
@@ -191,6 +195,20 @@ if (comOuvinte) {
             tipo: "ice",
             conteudo: JSON.stringify(event.candidate),
           }).catch(() => {});
+        }
+      };
+
+      peer.oniceconnectionstatechange = () => {
+        // Se a ligação ICE falhar, terminar a chamada (sem áudio).
+        if (
+          peer.iceConnectionState === "failed" ||
+          peer.iceConnectionState === "disconnected"
+        ) {
+          if (chamadaAtivaRef.current) {
+            void terminarChamada(chamadaAtivaRef.current.id).catch(() => {});
+          }
+          finalizarPeer();
+          setChamadaAtiva(null);
         }
       };
 
