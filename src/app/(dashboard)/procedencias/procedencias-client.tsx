@@ -8,6 +8,7 @@ import { cn } from "@/utils/cn";
 import { motion } from "framer-motion";
 import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
 import { criarProcedencia, atualizarProcedencia, eliminarProcedencia } from "@/server/actions/procedencias-actions";
 import { usePermissoes } from "@/hooks/use-permissoes";
 
@@ -30,11 +31,20 @@ export function ProcedenciasClient({ procedencias }: ProcedenciasClientProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 9;
 
   const filtered = procedencias.filter(
     (p) =>
       p.nome.toLowerCase().includes(search.toLowerCase()) ||
       p.descricao?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginaSegura = Math.min(currentPage, totalPages);
+  const paginadas = filtered.slice(
+    (paginaSegura - 1) * pageSize,
+    (paginaSegura - 1) * pageSize + pageSize
   );
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -93,7 +103,7 @@ export function ProcedenciasClient({ procedencias }: ProcedenciasClientProps) {
 
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <input type="text" placeholder="Pesquisar..." value={search} onChange={(e) => setSearch(e.target.value)}
+<input type="text" placeholder="Pesquisar..." value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
           className="w-full rounded-lg border bg-background py-2.5 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30" />
       </div>
 
@@ -106,7 +116,7 @@ export function ProcedenciasClient({ procedencias }: ProcedenciasClientProps) {
           ) : undefined} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((p) => (
+          {paginadas.map((p) => (
             <div key={p.id} className="rounded-xl border bg-card p-5 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
@@ -132,13 +142,23 @@ export function ProcedenciasClient({ procedencias }: ProcedenciasClientProps) {
                 {pode("procedencias", "eliminar") && (
                   <button onClick={() => handleDelete(p.id, p.nome)}
                     className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors">
-                    <Trash2 className="h-3.5 w-3.5" /> Eliminar
+<Trash2 className="h-3.5 w-3.5" /> Eliminar
                   </button>
                 )}
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {filtered.length > 0 && (
+        <Pagination
+          currentPage={paginaSegura}
+          totalPages={totalPages}
+          total={filtered.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+        />
       )}
 
       <Modal open={modalOpen} onClose={() => { setModalOpen(false); setEditingId(null); }}

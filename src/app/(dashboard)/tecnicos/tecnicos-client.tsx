@@ -8,6 +8,7 @@ import { cn } from "@/utils/cn";
 import { motion } from "framer-motion";
 import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
 import { criarTecnico, atualizarTecnico, eliminarTecnico } from "@/server/actions/tecnicos-actions";
 import { usePermissoes } from "@/hooks/use-permissoes";
 
@@ -28,16 +29,25 @@ interface TecnicosClientProps {
 export function TecnicosClient({ tecnicos }: TecnicosClientProps) {
   const router = useRouter();
   const { pode } = usePermissoes();
-  const [search, setSearch] = useState("");
+const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const filtered = tecnicos.filter(
     (t) =>
       t.nome.toLowerCase().includes(search.toLowerCase()) ||
       t.email?.toLowerCase().includes(search.toLowerCase()) ||
       t.especialidade?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginaSegura = Math.min(currentPage, totalPages);
+  const paginadas = filtered.slice(
+    (paginaSegura - 1) * pageSize,
+    (paginaSegura - 1) * pageSize + pageSize
   );
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -109,11 +119,11 @@ export function TecnicosClient({ tecnicos }: TecnicosClientProps) {
       {/* Search */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <input
+<input
           type="text"
           placeholder="Pesquisar técnicos..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
           className="w-full rounded-lg border bg-background py-2.5 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
         />
       </div>
@@ -138,7 +148,7 @@ export function TecnicosClient({ tecnicos }: TecnicosClientProps) {
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((tecnico) => (
+          {paginadas.map((tecnico) => (
             <div
               key={tecnico.id}
               className="rounded-xl border bg-card p-5 hover:shadow-md transition-shadow"
@@ -209,6 +219,17 @@ export function TecnicosClient({ tecnicos }: TecnicosClientProps) {
             </div>
           ))}
         </div>
+      )}
+
+      {filtered.length > 0 && (
+<Pagination
+          currentPage={paginaSegura}
+          totalPages={totalPages}
+          total={filtered.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+        />
       )}
 
       {/* Modal */}

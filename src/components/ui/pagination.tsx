@@ -9,8 +9,12 @@ interface PaginationProps {
   total: number;
   onPageChange: (page: number) => void;
   pageSize?: number;
+  onPageSizeChange?: (size: number) => void;
+  pageSizeOptions?: number[];
   className?: string;
 }
+
+const OPCOES_POR_OMISSAO = [10, 20, 30, 50, 100];
 
 export function Pagination({
   currentPage,
@@ -18,6 +22,8 @@ export function Pagination({
   total,
   onPageChange,
   pageSize = 20,
+  onPageSizeChange,
+  pageSizeOptions = OPCOES_POR_OMISSAO,
   className,
 }: PaginationProps) {
   const start = Math.min((currentPage - 1) * pageSize + 1, total);
@@ -41,12 +47,30 @@ export function Pagination({
   if (totalPages <= 1) return null;
 
   return (
-    <div className={cn("flex items-center justify-between border-t px-4 py-3", className)}>
-      <p className="text-sm text-muted-foreground">
-        <span className="font-medium">{start}</span> -{" "}
-        <span className="font-medium">{end}</span> de{" "}
-        <span className="font-medium">{total}</span>
-      </p>
+<div className={cn("flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t px-4 py-3", className)}>
+      <div className="flex items-center gap-3">
+        {onPageSizeChange && (
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            Itens por página
+            <select
+              value={pageSize}
+              onChange={(e) => onPageSizeChange(Number(e.target.value))}
+              className="rounded-lg border bg-background px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
+            >
+              {pageSizeOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <p className="text-sm text-muted-foreground">
+          <span className="font-medium">{start}</span> -{" "}
+          <span className="font-medium">{end}</span> de{" "}
+          <span className="font-medium">{total}</span>
+        </p>
+      </div>
 
       <div className="flex items-center gap-1">
         <button

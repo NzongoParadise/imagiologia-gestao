@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import { Modal } from "@/components/ui/modal";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
 import { usePermissoes } from "@/hooks/use-permissoes";
 
 interface Utilizador {
@@ -25,17 +26,26 @@ interface UtilizadoresClientProps {
 }
 
 export function UtilizadoresClient({ utilizadores }: UtilizadoresClientProps) {
-  const router = useRouter();
+const router = useRouter();
   const { pode } = usePermissoes();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const filtered = utilizadores.filter(
     (u) =>
       u.nome.toLowerCase().includes(search.toLowerCase()) ||
       u.email.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginaSegura = Math.min(currentPage, totalPages);
+  const paginadas = filtered.slice(
+    (paginaSegura - 1) * pageSize,
+    (paginaSegura - 1) * pageSize + pageSize
   );
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -115,7 +125,7 @@ export function UtilizadoresClient({ utilizadores }: UtilizadoresClientProps) {
 
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <input type="text" placeholder="Pesquisar utilizadores..." value={search} onChange={(e) => setSearch(e.target.value)}
+<input type="text" placeholder="Pesquisar utilizadores..." value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
           className="w-full rounded-lg border bg-background py-2.5 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30" />
       </div>
 
@@ -126,8 +136,8 @@ export function UtilizadoresClient({ utilizadores }: UtilizadoresClientProps) {
               className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">Adicionar</button>
           ) : undefined} />
       ) : (
-        <div className="space-y-3">
-          {filtered.map((user) => (
+<div className="space-y-3">
+          {paginadas.map((user) => (
             <div key={user.id} className="flex items-center gap-4 rounded-xl border bg-card p-4 hover:shadow-sm transition-shadow">
               <Avatar name={user.nome} size="md" />
               <div className="flex-1 min-w-0">
@@ -165,6 +175,17 @@ export function UtilizadoresClient({ utilizadores }: UtilizadoresClientProps) {
             </div>
           ))}
         </div>
+)}
+
+      {filtered.length > 0 && (
+<Pagination
+          currentPage={paginaSegura}
+          totalPages={totalPages}
+          total={filtered.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+        />
       )}
 
       <Modal open={modalOpen} onClose={() => { setModalOpen(false); setEditingId(null); }}
