@@ -14,6 +14,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { diagnosticarImagemServer } from "@/features/imagens/services/ml-service";
+import { gerarComGemini, geminiConfigurado } from "@/services/gemini.service";
 import type { MLAchado } from "@/features/imagens/types";
 import type { AnaliseIA, ResultadoAnaliseIA, AchadoIA } from "@/features/medico/types/ia";
 
@@ -110,6 +111,85 @@ export function gerarPreLaudo(resultado: {
 }
 
 /**
+ * Gera um pré-laudo clínico enriquecido com o Google Gemini, com base no
+ * resultado normalizado do motor de visão (diagnóstico, achados, resumo).
+ *
+ * Usa dados anonimizados (sem identificação do paciente) e instrução de
+ * sistema com salvaguardas de segurança clínica. Devolve o texto do pré-laudo
+ * ou `null` se o Gemini não estiver configurado ou falhar — nesse caso o
+ * chamador deve usar o `gerarPreLaudo()` estático como fallback.
+ */
+export async function gerarPreLaudoComGemini(dados: {
+  diagnostico: string;
+  confianca: number;
+  achados: AchadoIA[];
+  resumo: string;
+  modalidade?: string;
+  recomendacoes?: string[];
+}): Promise<string | null> {
+  if (!geminiConfigurado()) {
+    return null;
+  }
+
+  const achadosTexto = (dados.achados || [])
+    .map(
+      (a) =>
+        `- ${a.nome}${a.probabilidade > 0 ? ` (probabilidade ${Math.round(a.probabilidade)}%)` : ""}${
+          a.presente ? " — presente" : " — não evidenciado"
+        }${a.descricao ? `: ${a.descricao}` : ""}`
+    )
+    .join("\n");
+
+  const modalidade = dados.modalidade || "Imagiologia";
+
+  const prompt = [
+    `TIPO DE EXAME / MODALIDADE: ${modalidade}`,
+    `DIAGNÓSTICO SUGERIDO (pelo motor de visão): ${dados.diagnostico}`,
+    `CONFIANÇA: ${Math.round(dados.confianca)}%`,
+    "",
+    "ACHADOS:",
+    achadosTexto || "- Nenhum achado específico.",
+    "",
+    "RESUMO:",
+    dados.resumo || "Sem resumo automático.",
+    "",
+    ...(dados.recomendacoes?.length
+      ? ["RECOMENDAÇÕES:", ...dados.recomendacoes.map((r) => `- ${r}`), ""]
+      : []),
+    "Escreve um pré-laudo radiológico estruturado em português de Portugal, com secções:",
+    "1) DESCRIÇÃO (técnica e achados)",
+    "2) ACHADOS (listados com localização e carácter)",
+    "3) CONCLUSÃO (síntese clínica, sem diagnóstico definitivo)",
+    "4) NOTA (recomendação de correlação clínica e que é um texto de apoio)",
+    "",
+    "Regras obrigatórias:",
+    "- NÃO inventar achados; basear-te APENAS nos dados fornecidos acima.",
+    "- Não usar identificação do paciente (anonimizado).",
+    "- Usar linguagem clínica profissional e prudente.",
+    "- Todas as conclusões devem ser apresentadas como SUGESTÃO de apoio à decisão.",
+  ].join("\n");
+
+  const systemInstruction = [
+    "És um assistente radiológico de APOIO à decisão clínica.",
+    "Nunca apresentas um diagnóstico definitivo — apenas hipóteses e sugestões a validar por um médico especialista.",
+    "Responde sempre em português de Portugal.",
+    "Não inventas informação clínica que não esteja fornecida no prompt.",
+  ].join("\n");
+
+  try {
+    const texto = await gerarComGemini(prompt, systemInstruction, {
+      temperatura: 0.3,
+      maxOutputTokens: 2048,
+    });
+    if (!texto.trim()) return null;
+    return texto;
+  } catch (err) {
+    console.error("Falha ao gerar pré-laudo com Gemini, a usar fallback estático:", err);
+    return null;
+  }
+}
+
+/**
  * Executa a análise de IA sobre uma imagem de um exame e persiste o resultado.
  * A autorização é feita pela server action que invoca esta função.
  *
@@ -144,7 +224,25 @@ export async function analisarImagemComIA(
     regioesInteresse: resultado.regioesInteresse,
   });
 
-  const tempoProcessamento = (Date.now() - inicio) / 1000;
+const tempoProcessamento = (Date.now() - inicio) / 1000;
+
+  // 2b. Tenta gerar um pré-laudo clínico enriquecido com o Google Gemini
+  //     (com fallback para o texto estático `gerarPreLaudo` quando não estiver
+  //     configurado ou se a API falhar).
+  let preLaudo = normalizado.preLaudo;
+  let motorPreLaudo = "regras";
+  const preLaudoGemini = await gerarPreLaudoComGemini({
+    diagnostico: normalizado.diagnostico,
+    confianca: normalizado.confidence,
+    achados: normalizado.findings,
+    resumo: normalizado.summary,
+    modalidade: nomeTipoExame,
+    recomendacoes: resultado.recomendacoes,
+  });
+  if (preLaudoGemini) {
+    preLaudo = preLaudoGemini;
+    motorPreLaudo = "gemini";
+  }
 
   // 3. Persiste
   const analise = await prisma.analiseIA.create({
@@ -157,8 +255,11 @@ export async function analisarImagemComIA(
       confianca: normalizado.confidence,
       achados: normalizado.findings as unknown as Prisma.InputJsonValue,
       resumo: normalizado.summary,
-      resultadoJson: normalizado as unknown as Prisma.InputJsonValue,
-      preLaudo: normalizado.preLaudo,
+      resultadoJson: {
+        ...normalizado,
+        motorPreLaudo,
+      } as unknown as Prisma.InputJsonValue,
+      preLaudo,
       status: "concluido",
       tempoProcessamento,
     },
