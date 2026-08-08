@@ -19,7 +19,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
-import { diagnosticarImagem } from "../services/ml-service";
+import { diagnosticarImagemComGemini } from "@/server/actions/imagens-actions";
 import type { MLDiagnostico, MLAchado } from "../types";
 
 interface MLAnaliseProps {
@@ -55,8 +55,8 @@ export function MLAnalise({ imagemId, imageUrl, imageName, tipoExame }: MLAnalis
     if (loading || resultado) return;
     setLoading(true);
     setErro(null);
-    try {
-      const res = await diagnosticarImagem(imagemId, imageUrl, tipoExame);
+try {
+      const res = await diagnosticarImagemComGemini(imagemId, tipoExame);
       setResultado(res);
       setExpandido(true);
     } catch (err) {
@@ -64,7 +64,7 @@ export function MLAnalise({ imagemId, imageUrl, imageName, tipoExame }: MLAnalis
     } finally {
       setLoading(false);
     }
-  }, [imagemId, imageUrl, tipoExame, loading, resultado]);
+  }, [imagemId, tipoExame, loading, resultado]);
 
   const reset = () => {
     setResultado(null);

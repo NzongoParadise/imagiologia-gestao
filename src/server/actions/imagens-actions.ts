@@ -4,6 +4,63 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { registarHistorico } from "./historico-actions";
 import { autorizar } from "@/lib/permissions-server";
+import { diagnosticarImagemServer } from "@/features/imagens/services/ml-service";
+import { gerarDiagnosticoComGemini } from "@/services/ai.service";
+import type { MLDiagnostico } from "@/features/imagens/types";
+
+/**
+ * Diagnostica uma imagem com o motor de visão (TorchXRayVision/heurística)
+ * e enriquece o resultado (diagnóstico, resumo e descrições dos achados)
+ * com o Google Gemini quando a chave GEMINI_API_KEY está configurada.
+ *
+ * É a via server-safe para o módulo de Imagens usar o Gemini, uma vez que o
+ * Gemini só corre no servidor (Node.js). Devolve um MLDiagnostico enriquecido.
+ */
+export async function diagnosticarImagemComGemini(
+  imagemId: number,
+  nomeTipoExame?: string
+): Promise<MLDiagnostico> {
+  await autorizar("imagens", "ler");
+
+  const imagem = await prisma.imagem.findUnique({ where: { id: imagemId } });
+  if (!imagem) throw new Error("Imagem não encontrada");
+
+  // 1. Motor de visão (server-safe) com os bytes da imagem.
+  const resultado = await diagnosticarImagemServer(
+    imagemId,
+    imagem.dados ?? Buffer.from([]),
+    nomeTipoExame
+  );
+
+  // 2. Enriquecer com Gemini (com fallback para os valores originais).
+  const enriquecido = await gerarDiagnosticoComGemini({
+    diagnostico: resultado.diagnosticoPrincipal || "Sem alterações significativas",
+    confianca: resultado.confiancaDiagnostico ?? 0,
+    achados: (resultado.achados || []).map((a) => ({
+      nome: a.tipo,
+      probabilidade: a.confianca ?? 0,
+      presente: (a.confianca ?? 0) > 50,
+      descricao: a.descricao,
+    })),
+    resumo: resultado.resumo || "",
+    modalidade: resultado.modalidade || nomeTipoExame,
+  });
+
+  if (enriquecido) {
+    return {
+      ...resultado,
+      diagnosticoPrincipal: enriquecido.diagnostico,
+      resumo: enriquecido.resumo,
+      achados: (resultado.achados || []).map((a) => {
+        const enr = enriquecido.achados.find((e) => e.nome.toLowerCase() === a.tipo.toLowerCase());
+        return enr?.descricao ? { ...a, descricao: enr.descricao } : a;
+      }),
+      modelo: "Gemini + Motor de Visão",
+    };
+  }
+
+  return resultado;
+}
 
 export async function uploadImagem(exameId: number, formData: FormData) {
   await autorizar("imagens", "criar");

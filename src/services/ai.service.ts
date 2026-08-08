@@ -190,6 +190,107 @@ export async function gerarPreLaudoComGemini(dados: {
 }
 
 /**
+ * Gera um diagnóstico clínico enriquecido com o Google Gemini, com base no
+ * resultado do motor de visão (diagnóstico, achados, resumo, modalidade).
+ *
+ * Devolve um objeto com o diagnóstico reformulado, um resumo contextualizado
+ * e as descrições dos achados enriquecidas — ou `null` se o Gemini não estiver
+ * configurado ou falhar (nesse caso o chamador mantém os valores originais).
+ *
+ * ⚠️ Segurança clínica: pede-se ao Gemini que reformule/explicite APENAS com
+ * base nos dados fornecidos, sem inventar achados e sem identificação do
+ * paciente. As conclusões são sempre apresentadas como sugestão de apoio.
+ */
+export async function gerarDiagnosticoComGemini(dados: {
+  diagnostico: string;
+  confianca: number;
+  achados: AchadoIA[];
+  resumo: string;
+  modalidade?: string;
+}): Promise<{
+  diagnostico: string;
+  resumo: string;
+  achados: Array<{ nome: string; descricao?: string }>;
+} | null> {
+  if (!geminiConfigurado()) {
+    return null;
+  }
+
+  const achadosTexto = (dados.achados || [])
+    .map(
+      (a) =>
+        `- ${a.nome}${a.probabilidade > 0 ? ` (probabilidade ${Math.round(a.probabilidade)}%)` : ""}${a.descricao ? `: ${a.descricao}` : ""}`
+    )
+    .join("\n");
+
+  const modalidade = dados.modalidade || "Imagiologia";
+
+  const prompt = [
+    `TIPO DE EXAME / MODALIDADE: ${modalidade}`,
+    `DIAGNÓSTICO SUGERIDO (pelo motor de visão): ${dados.diagnostico}`,
+    `CONFIANÇA: ${Math.round(dados.confianca)}%`,
+    "",
+    "ACHADOS:",
+    achadosTexto || "- Nenhum achado específico.",
+    "",
+    "RESUMO:",
+    dados.resumo || "Sem resumo automático.",
+    "",
+    "Com base exclusivamente nos dados acima, devolve um JSON válido com exatamente esta estrutura:",
+    '{ "diagnostico": "diagnóstico reformulado de forma clínica e prudente", "resumo": "resumo contextualizado em 2-3 frases", "achados": [ { "nome": "achado original", "descricao": "descrição clínica enriquecida" } ] }',
+    "",
+    "Regras obrigatórias:",
+    "- NÃO inventar achados, diagnósticos ou informação clínica que não estejam fornecidos acima.",
+    "- Não usar identificação de paciente (anonimizado).",
+    "- Usar linguagem clínica profissional e prudente em português de Portugal.",
+    "- Apresentar o diagnóstico como SUGESTÃO de apoio à decisão, não como certeza.",
+    "- Devolver APENAS o JSON, sem comentários adicionais.",
+  ].join("\n");
+
+  const systemInstruction = [
+    "És um assistente radiológico de APOIO à decisão clínica.",
+    "Reformulas e contextualizas o diagnóstico e os achados fornecidos por um motor de visão, sem inventar informação.",
+    "Nunca apresentas um diagnóstico definitivo — apenas hipóteses e sugestões a validar por um médico especialista.",
+    "Responde sempre em português de Portugal e devolves apenas JSON válido.",
+  ].join("\n");
+
+  try {
+    const texto = await gerarComGemini(prompt, systemInstruction, {
+      temperatura: 0.3,
+      maxOutputTokens: 1024,
+    });
+
+    // Extrai o JSON do texto (o Gemini pode envolver em ```json ... ```)
+    const jsonStr = texto.replace(/```json|```/g, "").trim();
+    const inicioJson = jsonStr.indexOf("{");
+    const fimJson = jsonStr.lastIndexOf("}");
+    if (inicioJson === -1 || fimJson === -1) return null;
+
+    const parsed = JSON.parse(jsonStr.slice(inicioJson, fimJson + 1));
+    if (!parsed || typeof parsed !== "object") return null;
+
+    return {
+      diagnostico:
+        typeof parsed.diagnostico === "string" && parsed.diagnostico.trim()
+          ? parsed.diagnostico.trim()
+          : dados.diagnostico,
+      resumo: typeof parsed.resumo === "string" && parsed.resumo.trim() ? parsed.resumo.trim() : dados.resumo,
+      achados: Array.isArray(parsed.achados)
+        ? parsed.achados
+            .filter((a: unknown) => a && typeof (a as { nome?: string }).nome === "string")
+            .map((a: { nome: string; descricao?: string }) => ({
+              nome: a.nome,
+              descricao: typeof a.descricao === "string" ? a.descricao : undefined,
+            }))
+        : dados.achados.map((a) => ({ nome: a.nome, descricao: a.descricao })),
+    };
+  } catch (err) {
+    console.error("Falha ao gerar diagnóstico com Gemini, a manter valores do motor de visão:", err);
+    return null;
+  }
+}
+
+/**
  * Executa a análise de IA sobre uma imagem de um exame e persiste o resultado.
  * A autorização é feita pela server action que invoca esta função.
  *
@@ -224,7 +325,32 @@ export async function analisarImagemComIA(
     regioesInteresse: resultado.regioesInteresse,
   });
 
-const tempoProcessamento = (Date.now() - inicio) / 1000;
+  const tempoProcessamento = (Date.now() - inicio) / 1000;
+
+  // Motor usado para o diagnóstico/findings (gemini ou motor de visão).
+  let motorDiagnostico = "regras";
+
+  // 2a. Tenta enriquecer o diagnóstico, o resumo e as descrições dos achados
+  //     com o Google Gemini (com fallback para os valores do motor de visão).
+  const enriquecido = await gerarDiagnosticoComGemini({
+    diagnostico: normalizado.diagnostico,
+    confianca: normalizado.confidence,
+    achados: normalizado.findings,
+    resumo: normalizado.summary,
+    modalidade: nomeTipoExame,
+  });
+
+  if (enriquecido) {
+    motorDiagnostico = "gemini";
+    normalizado.diagnostico = enriquecido.diagnostico;
+    normalizado.summary = enriquecido.resumo;
+    normalizado.findings = normalizado.findings.map((f) => {
+      const enr = enriquecido.achados.find((a) => a.nome.toLowerCase() === f.nome.toLowerCase());
+      return enr?.descricao
+        ? { ...f, descricao: enr.descricao }
+        : f;
+    });
+  }
 
   // 2b. Tenta gerar um pré-laudo clínico enriquecido com o Google Gemini
   //     (com fallback para o texto estático `gerarPreLaudo` quando não estiver
@@ -258,6 +384,7 @@ const tempoProcessamento = (Date.now() - inicio) / 1000;
       resultadoJson: {
         ...normalizado,
         motorPreLaudo,
+        motorDiagnostico,
       } as unknown as Prisma.InputJsonValue,
       preLaudo,
       status: "concluido",
