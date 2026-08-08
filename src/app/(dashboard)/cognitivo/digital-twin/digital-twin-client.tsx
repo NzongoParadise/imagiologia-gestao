@@ -132,8 +132,9 @@ const confirmarAssociacao = async (exameId: number) => {
                   key={r.id}
                   onClick={() => setRegiaoSelecionada(r)}
                   title={r.nomePT}
-                  className={cn(
+className={cn(
                     "absolute left-1/2 -translate-x-1/2 z-10 flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold shadow-md transition-transform hover:scale-125",
+                    meta.pos,
                     riscoCor(nivel)
                   )}
                   style={{ height: 20, width: 20 }}
