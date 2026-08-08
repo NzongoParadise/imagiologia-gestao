@@ -291,6 +291,93 @@ export async function gerarDiagnosticoComGemini(dados: {
 }
 
 /**
+ * Gera um resumo clínico comparativo entre dois exames com o Google Gemini,
+ * com base nos diagnósticos do motor de visão (exame anterior e atual).
+ *
+ * Enquanto a comparação heurística enumera os achados que mudaram, o Gemini
+ * produz uma síntese clínica mais rica e contextualizada (evolução, tendência,
+ * risco e recomendações), sempre como apoio à decisão e sem inventar dados.
+ *
+ * Devolve o texto do resumo comparativo ou `null` se o Gemini não estiver
+ * configurado ou falhar — nesse caso o chamador mantém o resumo heurístico.
+ */
+export async function compararExamesComGemini(dados: {
+  exameAnterior: { data: string; tipo: string; diagnostico: string; confianca: number; achados: AchadoIA[] };
+  exameAtual: { data: string; tipo: string; diagnostico: string; confianca: number; achados: AchadoIA[] };
+}): Promise<{ resumo: string; achadosMudaram: string[] } | null> {
+  if (!geminiConfigurado()) {
+    return null;
+  }
+
+  const formatarExame = (e: typeof dados.exameAnterior, rotulo: string) => {
+    const achados = (e.achados || [])
+      .map(
+        (a) =>
+          `- ${a.nome}${a.probabilidade > 0 ? ` (probabilidade ${Math.round(a.probabilidade)}%)` : ""}${a.descricao ? `: ${a.descricao}` : ""}`
+      )
+      .join("\n");
+    return [
+      `${rotulo}: ${e.tipo} (${e.data})`,
+      `  Diagnóstico sugerido: ${e.diagnostico}`,
+      `  Confiança: ${Math.round(e.confianca)}%`,
+      "  Achados:",
+      achados || "    - Nenhum achado específico.",
+    ].join("\n");
+  };
+
+  const prompt = [
+    formatarExame(dados.exameAnterior, "EXAME ANTERIOR"),
+    "",
+    formatarExame(dados.exameAtual, "EXAME ATUAL"),
+    "",
+    "Com base exclusivamente nos dados acima, devolve um JSON válido com exatamente esta estrutura:",
+    '{ "resumo": "síntese clínica comparativa em 3-5 frases, abordando a evolução entre os dois exames, tendência e risco clínico", "achadosMudaram": ["frase objetiva sobre cada alteração relevante entre exames"] }',
+    "",
+    "Regras obrigatórias:",
+    "- NÃO inventar achados, diagnósticos ou informação clínica que não estejam fornecidos acima.",
+    "- Não usar identificação de paciente (anonimizado).",
+    "- Usar linguagem clínica profissional e prudente em português de Portugal.",
+    "- Apresentar tudo como SUGESTÃO de apoio à decisão, nunca como certeza.",
+    "- Devolver APENAS o JSON, sem comentários adicionais.",
+  ].join("\n");
+
+  const systemInstruction = [
+    "És um assistente radiológico de APOIO à decisão clínica, especializado em comparar exames de imagem ao longo do tempo.",
+    "Avalias a evolução entre um exame anterior e um atual, identificando tendências e riscos, sem inventar informação.",
+    "Nunca apresentas um diagnóstico definitivo — apenas hipóteses e sugestões a validar por um médico especialista.",
+    "Responde sempre em português de Portugal e devolves apenas JSON válido.",
+  ].join("\n");
+
+  try {
+    const texto = await gerarComGemini(prompt, systemInstruction, {
+      temperatura: 0.3,
+      maxOutputTokens: 1024,
+    });
+
+    const jsonStr = texto.replace(/```json|```/g, "").trim();
+    const inicioJson = jsonStr.indexOf("{");
+    const fimJson = jsonStr.lastIndexOf("}");
+    if (inicioJson === -1 || fimJson === -1) return null;
+
+    const parsed = JSON.parse(jsonStr.slice(inicioJson, fimJson + 1));
+    if (!parsed || typeof parsed !== "object") return null;
+
+    return {
+      resumo:
+        typeof parsed.resumo === "string" && parsed.resumo.trim()
+          ? parsed.resumo.trim()
+          : "",
+      achadosMudaram: Array.isArray(parsed.achadosMudaram)
+        ? parsed.achadosMudaram.filter((a: unknown) => typeof a === "string")
+        : [],
+    };
+  } catch (err) {
+    console.error("Falha ao comparar exames com Gemini, a manter resumo heurístico:", err);
+    return null;
+  }
+}
+
+/**
  * Executa a análise de IA sobre uma imagem de um exame e persiste o resultado.
  * A autorização é feita pela server action que invoca esta função.
  *
