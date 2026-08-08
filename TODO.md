@@ -8,4 +8,4 @@
   - Criar `gerarPreLaudoComGemini()` (geração de pré-laudo clínico enriquecido)
   - Usar Gemini em `analisarImagemComIA()` quando configurado, com fallback para `gerarPreLaudo()`
 - [x] 4. Validar build/typecheck
-- [ ] 5. Commit e push para `main` (deploy Vercel produção)
+- [x] 5. Commit e push para `main` (deploy Vercel produção) — commit `c173845` enviado para `origin/main`
