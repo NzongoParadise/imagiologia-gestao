@@ -20,7 +20,7 @@ export async function diagnosticarImagemComGemini(
   imagemId: number,
   nomeTipoExame?: string
 ): Promise<MLDiagnostico> {
-  await autorizar("imagens", "ler");
+await autorizar("imagens", "ver");
 
   const imagem = await prisma.imagem.findUnique({ where: { id: imagemId } });
   if (!imagem) throw new Error("Imagem não encontrada");
