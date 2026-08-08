@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { GestorChamadas } from "@/features/chamadas-voz/components/gestor-chamadas";
+import { AssistenteFlutuante } from "@/components/layout/assistente-flutuante";
 import { Toaster } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -105,6 +106,9 @@ export default function DashboardLayout({
 
       {/* Gestor de chamadas de voz (overlays + sinalização) */}
       <GestorChamadas />
+
+      {/* Assistente flutuante do sistema */}
+      <AssistenteFlutuante />
     </div>
   );
 }
