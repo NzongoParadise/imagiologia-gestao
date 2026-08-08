@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { autorizar } from "@/lib/permissions-server";
 import { registarHistorico } from "@/server/actions/historico-actions";
+import { gerarComGemini, geminiConfigurado } from "@/services/gemini.service";
 import type {
   DashboardCognitivo,
   LinhaTemporal,
@@ -1258,7 +1259,69 @@ export async function perguntarIAGenerativa(pergunta: string): Promise<RespostaI
   const q = pergunta.toLowerCase();
   const fontes: { tipo: string; descricao: string; id?: number }[] = [];
   let resposta = "";
+  let usouGemini = false;
 
+  // ── Via Gemini (se configurado) ────────────────────────────────────────
+  if (geminiConfigurado()) {
+    try {
+      // Contexto real e anonimizado do banco para o modelo responder com rigor
+      const [nPacientes, nExames, nCasos, nContradicoes, nComparacoes, nPrevisoes, nOpinioes] =
+        await Promise.all([
+          prisma.paciente.count(),
+          prisma.exame.count(),
+          prisma.casoClinico.count(),
+          prisma.contradicao.count({ where: { estado: { in: ["aberta", "confirmada"] } } }),
+          prisma.comparacaoExame.count(),
+          prisma.predicaoServico.count(),
+          prisma.segundaOpiniao.count(),
+        ]);
+
+      const contexto = {
+        pacientes: nPacientes,
+        exames: nExames,
+        casosMemoriaClinica: nCasos,
+        contradicoesPendentes: nContradicoes,
+        comparacoesRadiologicas: nComparacoes,
+        previsoes: nPrevisoes,
+        segundasOpinioes: nOpinioes,
+        nota: "Responda apenas com base nestes dados. Não invente números. Reescreva a resposta de forma natural e útil em português de Portugal.",
+      };
+
+      const prompt = `PERGUNTA DO UTILIZADOR: "${pergunta}"\n\nDADOS REAIS AGREGADOS E ANONIMIZADOS:\n${JSON.stringify(contexto, null, 2)}`;
+
+      const geminiResposta = await gerarComGemini(prompt, undefined, {
+        temperatura: 0.4,
+        maxOutputTokens: 1024,
+      });
+
+      resposta = geminiResposta;
+      usouGemini = true;
+      fontes.push({ tipo: "gemini", descricao: "Resposta gerada com Google Gemini com base nos dados reais do sistema." });
+      fontes.push({ tipo: "dados", descricao: `${nPacientes} pacientes · ${nExames} exames · ${nCasos} casos de memória clínica` });
+
+      // Persiste a sessão de IA
+      const sessao = await prisma.sessaoIA.create({
+        data: {
+          titulo: pergunta.slice(0, 60),
+          tipo: "generativa",
+          utilizadorId: userId,
+          contextoJson: { fontes, motor: "gemini" } as Prisma.InputJsonValue,
+          mensagens: {
+            create: [
+              { papel: "utilizador", conteudo: pergunta },
+              { papel: "assistente", conteudo: resposta, contextoJson: { fontes, motor: "gemini" } as Prisma.InputJsonValue },
+            ],
+          },
+        },
+      });
+
+      return { resposta, fontes, contextoJson: { sessaoId: sessao.id, motor: "gemini" } };
+    } catch (err) {
+      console.error("Gemini indisponível, a usar fallback heurístico:", err);
+    }
+  }
+
+  // ── Fallback heurístico (sem Gemini ou se a API falhar) ────────────────
   // Heurísticas baseadas em dados reais do banco (nunca inventa)
   if (/pneumonia/.test(q) && /60|maior|acima|idos/.test(q)) {
     const inicio = new Date();
