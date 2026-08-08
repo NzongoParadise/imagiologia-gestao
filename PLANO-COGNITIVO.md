@@ -31,13 +31,13 @@ Next.js 16 (App Router), React 19, TypeScript, Prisma, PostgreSQL (Neon), Tailwi
 - [x] 3. Digital Twin Radiológico — `/cognitivo/digital-twin` (`page.tsx` + `digital-twin-client.tsx`)
 - [x] 4. Evolução Radiológica — `/cognitivo/evolucao` (`page.tsx` + `evolucao-client.tsx`)
 - [x] 5. Detector Inteligente de Mudanças — `/cognitivo/detector-mudancas` (`page.tsx` + `detector-mudancas-client.tsx`)
-- [ ] 6. Assistente Clínico Explicável — `/cognitivo/assistente`
-- [ ] 7. Memória Clínica Hospitalar — `/cognitivo/memoria-clinica`
-- [ ] 8. Detector de Contradições — `/cognitivo/contradicoes`
-- [ ] 9. Radar Epidemiológico — `/cognitivo/radar-epidemiologico`
-- [ ] 10. Previsão Inteligente — `/cognitivo/previsao`
-- [ ] 11. Segunda Opinião — `/cognitivo/segunda-opiniao`
-- [ ] 12. Reunião Clínica — `/cognitivo/reunioes`
-- [ ] 13. Pesquisa Científica — `/cognitivo/pesquisa`
-- [ ] 14. IA Generativa — `/cognitivo/ia-generativa`
+- [x] 6. Assistente Clínico Explicável — `/cognitivo/assistente` (`page.tsx` + `assistente-client.tsx`)
+- [x] 7. Memória Clínica Hospitalar — `/cognitivo/memoria-clinica` (`page.tsx` + `memoria-clinica-client.tsx`)
+- [x] 8. Detector de Contradições — `/cognitivo/contradicoes` (`page.tsx` + `contradicoes-client.tsx`)
+- [x] 9. Radar Epidemiológico — `/cognitivo/radar-epidemiologico` (`page.tsx` + `radar-epidemiologico-client.tsx`)
+- [x] 10. Previsão Inteligente — `/cognitivo/previsao` (`page.tsx` + `previsao-client.tsx`)
+- [x] 11. Segunda Opinião — `/cognitivo/segunda-opiniao` (`page.tsx` + `segunda-opiniao-client.tsx`)
+- [x] 12. Reunião Clínica — `/cognitivo/reunioes` (`page.tsx` + `reunioes-client.tsx`)
+- [x] 13. Pesquisa Científica — `/cognitivo/pesquisa` (`page.tsx` + `pesquisa-client.tsx`)
+- [x] 14. IA Generativa — `/cognitivo/ia-generativa` (`page.tsx` + `ia-generativa-client.tsx`)
 
