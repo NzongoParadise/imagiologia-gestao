@@ -1,16 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ScanSearch,
   Image as ImageIcon,
-  FileText,
   ChevronRight,
   LayoutDashboard,
+  Loader2,
+  Link2,
+  CheckCircle2,
+  AlertOctagon,
 } from "lucide-react";
 import { CognitivoCard } from "@/features/cognitivo/components/ui/cognitivo-card";
-import type { RegiaoAnatomica, RegiaoGrupo } from "@/features/cognitivo/types";
+import { associarExameRegiao } from "@/server/actions/cognitivo-actions";
+import type { RegiaoAnatomica } from "@/features/cognitivo/types";
 import { formatDate } from "@/utils/format";
 import { cn } from "@/utils/cn";
 
@@ -35,19 +40,53 @@ const riscoCor = (nivel: string) => {
 };
 
 export function DigitalTwinClient({ regioes, exames }: Props) {
+  const router = useRouter();
   const [regiaoSelecionada, setRegiaoSelecionada] = useState<RegiaoAnatomica | null>(null);
-
-  const regioesAgrupadas = regioes.reduce<Record<string, RegiaoAnatomica[]>>((acc, r) => {
-    (acc[r.grupo] = acc[r.grupo] || []).push(r);
-    return acc;
-  }, {});
+  const [aAssociar, setAAssociar] = useState(false);
+  const [aAssociarExame, setAAssociarExame] = useState<number | null>(null);
+  const [associando, setAssociando] = useState(false);
+  const [mensagem, setMensagem] = useState<{ tipo: "sucesso" | "erro"; texto: string } | null>(null);
 
   const nivelRisco = (r: RegiaoAnatomica): "critico" | "alerta" | "normal" => {
     const max = r.indicadores?.reduce((m, i) => Math.max(m, i.valor), 0) || 0;
     if (r.indicadores?.some((i) => i.nivel === "critico") || max >= 80) return "critico";
     if (r.indicadores?.some((i) => i.nivel === "alerta") || max >= 50) return "alerta";
-    if (r.exames?.length === 0) return "normal";
     return "normal";
+  };
+
+  const examesJaAssociados = (regiao: RegiaoAnatomica | null) =>
+    new Set((regiao?.exames || []).map((er) => er.exameId));
+  const jaAssociados = examesJaAssociados(regiaoSelecionada);
+
+  const examesLivres = exames.filter((e) =>
+    regiaoSelecionada ? !jaAssociados.has(e.id) : true
+  );
+
+const confirmarAssociacao = async (exameId: number) => {
+    if (!regiaoSelecionada) return;
+    setAssociando(true);
+    setMensagem(null);
+    try {
+      await associarExameRegiao(Number(exameId), regiaoSelecionada.id);
+      setMensagem({ tipo: "sucesso", texto: "Exame associado com sucesso à região." });
+      setAAssociar(false);
+      setAAssociarExame(null);
+      // Recarrega os dados do servidor para refletir a nova associação
+      router.refresh();
+    } catch (err) {
+      setMensagem({
+        tipo: "erro",
+        texto: err instanceof Error ? err.message : "Ocorreu um erro ao associar o exame.",
+      });
+    } finally {
+      setAssociando(false);
+    }
+  };
+
+  const abrirAssociacao = () => {
+    setMensagem(null);
+    setAAssociar(true);
+    setAAssociarExame(null);
   };
 
   return (
@@ -183,11 +222,62 @@ export function DigitalTwinClient({ regioes, exames }: Props) {
                 </div>
               )}
 
-              {/* Ações */}
-              <div className="flex flex-wrap gap-2">
-                <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground">
-                  <FileText className="h-3.5 w-3.5" /> Associar Exame
-                </button>
+{/* Ações */}
+              <div className="space-y-3">
+                {mensagem && (
+                  <div className={cn(
+                    "flex items-center gap-2 rounded-lg px-3 py-2 text-sm",
+                    mensagem.tipo === "sucesso" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                  )}>
+                    {mensagem.tipo === "sucesso" ? <CheckCircle2 className="h-4 w-4" /> : <AlertOctagon className="h-4 w-4" />}
+                    {mensagem.texto}
+                  </div>
+                )}
+
+                {!aAssociar ? (
+                  <button
+                    onClick={abrirAssociacao}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                  >
+                    <Link2 className="h-3.5 w-3.5" /> Associar Exame à Região
+                  </button>
+                ) : (
+                  <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+                    <p className="text-xs font-semibold">Selecione um exame para associar a <span className="text-primary">{regiaoSelecionada.nomePT}</span></p>
+                    <select
+                      value={aAssociarExame ?? ""}
+                      onChange={(e) => setAAssociarExame(e.target.value ? Number(e.target.value) : null)}
+                      className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="">— Escolher exame —</option>
+                      {examesLivres.map((e) => (
+                        <option key={e.id} value={e.id}>
+                          {e.tipoExame?.nome || "Exame"} · {e.paciente?.nome || e.codigo} · {e.codigo}
+                        </option>
+                      ))}
+                    </select>
+                    {examesLivres.length === 0 && (
+                      <p className="text-xs text-muted-foreground">Todos os exames disponíveis já estão associados a esta região.</p>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => aAssociarExame && confirmarAssociacao(aAssociarExame)}
+                        disabled={!aAssociarExame || associando}
+                        className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                      >
+                        {associando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                        {associando ? "A associar..." : "Confirmar Associação"}
+                      </button>
+                      <button
+                        onClick={() => { setAAssociar(false); setAAssociarExame(null); setMensagem(null); }}
+                        disabled={associando}
+                        className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/50 disabled:opacity-50"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
