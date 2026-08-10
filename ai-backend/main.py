@@ -19,8 +19,9 @@ import warnings
 from typing import Any, Optional
 
 import numpy as np
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from PIL import Image
 from pydantic import BaseModel
 
@@ -32,9 +33,40 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# ---------------------------------------------------------------------------
+# Autenticação por token Bearer
+# ---------------------------------------------------------------------------
+# Se a variável de ambiente AI_BACKEND_TOKEN estiver definida, todos os
+# endpoints de análise exigem o header `Authorization: Bearer <token>`.
+# Se não estiver definida (ex.: desenvolvimento local), a autenticação é
+# desativada para facilitar o teste. Em produção, defina sempre o token.
+# ---------------------------------------------------------------------------
+AI_BACKEND_TOKEN = os.getenv("AI_BACKEND_TOKEN", "").strip()
+_seguranca_bearer = HTTPBearer(auto_error=False)
+
+
+def verificar_token(
+    credenciais: Optional[HTTPAuthorizationCredentials] = Depends(_seguranca_bearer),
+) -> None:
+    if not AI_BACKEND_TOKEN:
+        return  # autenticação desativada (apenas desenvolvimento)
+    if credenciais is None or credenciais.credentials != AI_BACKEND_TOKEN:
+        raise HTTPException(
+            status_code=401,
+            detail="Não autorizado. Forneça o header 'Authorization: Bearer <token>'.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+# ---------------------------------------------------------------------------
+# CORS restrito (em produção defina AI_BACKEND_ORIGINS com orígens autorizadas)
+# ---------------------------------------------------------------------------
+_origens = os.getenv("AI_BACKEND_ORIGINS", "*")
+_origens_permitidas = [o.strip() for o in _origens.split(",") if o.strip()] or ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_origens_permitidas,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -314,6 +346,7 @@ async def analisar(
     file: UploadFile = File(..., description="Imagem (JPG/PNG)"),
     modalidade: str = Form("Raio-X", description="Modalidade do exame"),
     idade: Optional[int] = Form(None, description="Idade do paciente (anos)"),
+    _: None = Depends(verificar_token),
 ) -> AnaliseResponse:
     try:
         imagem_bytes = await file.read()

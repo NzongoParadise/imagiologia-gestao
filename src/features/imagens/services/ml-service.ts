@@ -485,13 +485,22 @@ async function chamarBackendIAServer(
   form.append("file", new Blob([new Uint8Array(imagemBytes)]), "imagem.png");
   form.append("modalidade", modalidade);
 
-  const aiBackendUrl = process.env.AI_BACKEND_URL?.replace(/\/$/, "");
+const aiBackendUrl = process.env.AI_BACKEND_URL?.replace(/\/$/, "");
+  const aiBackendToken = process.env.AI_BACKEND_TOKEN?.trim();
   const url = aiBackendUrl ? `${aiBackendUrl}/api/analisar` : "/api/ia/analisar";
 
   try {
+    const headers: Record<string, string> = {};
+    // Se houver token configurado e estivermos a chamar o backend diretamente,
+    // envia-o como Bearer. (Quando via proxy, o próprio proxy injeta o token.)
+    if (aiBackendUrl && aiBackendToken) {
+      headers["Authorization"] = `Bearer ${aiBackendToken}`;
+    }
+
     const res = await fetch(url, {
       method: "POST",
       body: form,
+      headers,
       // Não definir Content-Type: o fetch define o boundary multipart.
       ...(aiBackendUrl ? {} : { next: { revalidate: 0 } }),
     } as RequestInit);

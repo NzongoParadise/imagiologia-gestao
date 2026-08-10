@@ -30,7 +30,8 @@ export type Modulo =
   | "historico"
   | "chat"
   | "medico"
-  | "cognitivo";
+  | "cognitivo"
+  | "atendimento";
 
 export type Acao = "ver" | "criar" | "editar" | "eliminar";
 
@@ -41,6 +42,7 @@ export type PermissaoString = string; // ex: "exames.criar"
  * - "ADMIN" possui acesso total ("*.*").
  * - "TECNICO" tem acesso de gestão às áreas técnicas e clínicas.
  * - "RECEPCAO" tem acesso de front-office (pacientes, agendamentos, exames).
+ * - "MEDICO" tem acesso ao portal médico e cognitivo.
  */
 const PERMISSOES: Record<Role, PermissaoString[]> = {
   ADMIN: ["*.*"],
@@ -81,6 +83,10 @@ const PERMISSOES: Record<Role, PermissaoString[]> = {
     // Chat
     "chat.ver",
     "chat.criar",
+    // Atendimento
+    "atendimento.ver",
+    "atendimento.criar",
+    "atendimento.editar",
   ],
 
   RECEPCAO: [
@@ -102,9 +108,13 @@ const PERMISSOES: Record<Role, PermissaoString[]> = {
     // Chat
     "chat.ver",
     "chat.criar",
+    // Atendimento
+    "atendimento.ver",
+    "atendimento.criar",
+    "atendimento.editar",
   ],
 
-MEDICO: [
+  MEDICO: [
     // Dashboard
     "dashboard.ver",
     // Portal do Médico
@@ -129,6 +139,8 @@ MEDICO: [
     // Comunicação com radiologistas
     "chat.ver",
     "chat.criar",
+    // Atendimento (consulta)
+    "atendimento.ver",
   ],
 };
 
@@ -192,5 +204,11 @@ export const MENU_MODULOS: Record<string, Modulo> = {
   "/cognitivo/reunioes": "cognitivo",
   "/cognitivo/pesquisa": "cognitivo",
   "/cognitivo/ia-generativa": "cognitivo",
+  // Atendimento
+  "/atendimento": "atendimento",
+  "/atendimento/consultas": "atendimento",
+  "/atendimento/urgencias": "atendimento",
+  "/atendimento/encaminhamentos": "atendimento",
+  "/atendimento/dashboard": "atendimento",
+  "/atendimento/relatorios": "atendimento",
 };
-

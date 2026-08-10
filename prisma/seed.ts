@@ -160,6 +160,63 @@ await prisma.exame.upsert({
   }
   console.log(`✓ 10 sample exams created`);
 
+// Create specialties (consultas)
+  const especialidades = [
+    { nome: "Medicina Geral", descricao: "Consulta de medicina geral e familiar" },
+    { nome: "Pediatria", descricao: "Consulta de pediatria" },
+    { nome: "Cardiologia", descricao: "Consulta de cardiologia" },
+    { nome: "Ginecologia", descricao: "Consulta de ginecologia e obstetrícia" },
+    { nome: "Ortopedia", descricao: "Consulta de ortopedia e traumatologia" },
+    { nome: "Dermatologia", descricao: "Consulta de dermatologia" },
+    { nome: "Oftalmologia", descricao: "Consulta de oftalmologia" },
+    { nome: "Otorrinolaringologia", descricao: "Consulta de ORL" },
+    { nome: "Medicina Interna", descricao: "Consulta de medicina interna" },
+    { nome: "Neurologia", descricao: "Consulta de neurologia" },
+  ];
+
+  for (const esp of especialidades) {
+    await prisma.especialidade.upsert({
+      where: { nome: esp.nome },
+      update: {},
+      create: esp,
+    });
+  }
+  console.log(`✓ ${especialidades.length} specialties created`);
+
+  // Create urgency banks (BUM | BUP | BUCO)
+  const bancosUrgencia = [
+    { nome: "Banco de Urgência Médica", tipo: "BUM", descricao: "Urgências clínicas médicas" },
+    { nome: "Banco de Urgência Pediátrica", tipo: "BUP", descricao: "Urgências pediátricas" },
+    { nome: "Banco de Urgência Cirúrgica e Ortopédica", tipo: "BUCO", descricao: "Urgências cirúrgicas e ortopédicas" },
+  ];
+
+  for (const bu of bancosUrgencia) {
+    await prisma.bancoUrgencia.upsert({
+      where: { nome: bu.nome },
+      update: {},
+      create: bu,
+    });
+  }
+  console.log(`✓ ${bancosUrgencia.length} urgency banks created`);
+
+  // Create risk classifications (triagem Manchester)
+  const classificacoes = [
+    { nome: "Vermelho", cor: "vermelho", nivel: 5, descricao: "Emergência — risco de vida imediato", tempoMaximo: 0 },
+    { nome: "Laranja", cor: "laranja", nivel: 4, descricao: "Muito urgente — situação grave", tempoMaximo: 10 },
+    { nome: "Amarelo", cor: "amarelo", nivel: 3, descricao: "Urgente — situação moderada", tempoMaximo: 60 },
+    { nome: "Verde", cor: "verde", nivel: 2, descricao: "Pouco urgente — situação ligeira", tempoMaximo: 120 },
+    { nome: "Azul", cor: "azul", nivel: 1, descricao: "Não urgente — problema menor", tempoMaximo: 240 },
+  ];
+
+  for (const cl of classificacoes) {
+    await prisma.classificacaoRisco.upsert({
+      where: { nome: cl.nome },
+      update: {},
+      create: cl,
+    });
+  }
+  console.log(`✓ ${classificacoes.length} risk classifications created`);
+
   // Create default configurations
   const defaultConfiguracoes: Record<string, string> = {
     hospital_nome: "Hospital Geral do Uíge",

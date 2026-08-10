@@ -42,31 +42,371 @@ model Utilizador {
   reunioesCriadas             ReuniaoClinica[]
   reuniaoParticipacoes        ReuniaoParticipante[]
   reuniaoDecisoes             ReuniaoDecisao[]
+  atendimentosCriados         Atendimento[]          @relation("AtendimentosCriados")
+  atendimentosConsultas       AtendimentoConsulta[]  @relation("AtendimentoConsultaCriado")
+  atendimentosUrgencias       AtendimentoUrgencia[]  @relation("AtendimentoUrgenciaCriado")
+  consultasComoMedico         AtendimentoConsulta[]  @relation("AtendimentoConsultaMedico")
+  urgenciasComoMedico         AtendimentoUrgencia[]  @relation("AtendimentoUrgenciaMedico")
+  triagensEnfermeiro          Triagem[]              @relation("TriagemEnfermeiro")
+  encaminhamentosCriados      Encaminhamento[]       @relation("EncaminhamentosCriados")
+  senhasEmitidas              SenhaAtendimento[]     @relation("SenhasEmitidas")
+  filasGerenciadas            FilaAtendimento[]      @relation("FilasGerenciadas")
+  classificacoesRisco         ClassificacaoRisco[]   @relation("ClassificacoesRiscoCriadas")
+  agendamentosMedicos         AgendamentoConsulta[]  @relation("AgendamentoConsultaMedico")
+  agendamentosCriadosConsulta AgendamentoConsulta[]  @relation("AgendamentoConsultaCriado")
+  responsaveisCriados         Responsavel[]          @relation("ResponsaveisCriados")
 }
 
 model Paciente {
-  id             Int              @id @default(autoincrement())
-  numeroProcesso String           @unique @map("numero_processo")
-  nome           String
-  dataNascimento DateTime?        @map("data_nascimento")
-  sexo           String?          @map("sexo")
-  telefone       String?
-  email          String?
-  endereco       String?          @map("endereco")
-  documento      String?          @map("documento")
-  nif            String?
-  bi             String?
-  foto           String?
-  observacoes    String?
-  createdAt      DateTime         @default(now()) @map("criado_em")
-  updatedAt      DateTime         @updatedAt @map("atualizado_em")
-  exames         Exame[]
-  historico      Historico[]
-  notificacoes   Notificacao[]
-  anotacoes      Anotacao[]
-  reunioes       ReuniaoClinica[]
+  id                      Int                   @id @default(autoincrement())
+  numeroProcesso          String                @unique @map("numero_processo")
+  nome                    String
+  dataNascimento          DateTime?             @map("data_nascimento")
+  sexo                    String?               @map("sexo")
+  telefone                String?
+  email                   String?
+  endereco                String?               @map("endereco")
+  documento               String?               @map("documento")
+  nif                     String?
+  bi                      String?
+  foto                    String?
+  observacoes             String?
+  createdAt               DateTime              @default(now()) @map("criado_em")
+  updatedAt               DateTime              @updatedAt @map("atualizado_em")
+  exames                  Exame[]
+  historico               Historico[]
+  notificacoes            Notificacao[]
+  anotacoes               Anotacao[]
+  reunioes                ReuniaoClinica[]
+  atendimentos            Atendimento[]
+  atendimentosConsulta    AtendimentoConsulta[]
+  atendimentosUrgencia    AtendimentoUrgencia[]
+  triagens                Triagem[]
+  encaminhamentosEnviados Encaminhamento[]      @relation("EncaminhamentosEnviados")
+  senhas                  SenhaAtendimento[]    @relation("SenhasPaciente")
 
   @@map("pacientes")
+}
+
+// ===========================================================================
+// MÓDULO 01 — ATENDIMENTO (Consultas e Urgências)
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// Especialidade (consultas)
+// ---------------------------------------------------------------------------
+model Especialidade {
+  id          Int         @id @default(autoincrement())
+  nome        String      @unique
+  descricao   String?
+  ativo       Boolean     @default(true)
+  criadoPorId Int?        @map("criado_por_id")
+  criadoEm    DateTime    @default(now()) @map("criado_em")
+  atendimentos        Atendimento[]
+  atendimentosConsulta AtendimentoConsulta[]
+  agendamentos        AgendamentoConsulta[]
+  filas               FilaAtendimento[]
+
+  @@index([ativo])
+  @@map("especialidades")
+}
+
+// ---------------------------------------------------------------------------
+// Banco de Urgência (BUM | BUP | BUCO)
+// ---------------------------------------------------------------------------
+model BancoUrgencia {
+  id          Int         @id @default(autoincrement())
+  nome        String      @unique
+  tipo        String      @map("tipo") // BUM | BUP | BUCO
+  descricao   String?
+  ativo       Boolean     @default(true)
+  criadoPorId Int?        @map("criado_por_id")
+  criadoEm    DateTime    @default(now()) @map("criado_em")
+  urgencias   AtendimentoUrgencia[]
+
+  @@index([tipo])
+  @@index([ativo])
+  @@map("bancos_urgencia")
+}
+
+// ---------------------------------------------------------------------------
+// Responsável (acompanhante/representante do paciente)
+// ---------------------------------------------------------------------------
+model Responsavel {
+  id          Int         @id @default(autoincrement())
+  nome        String
+  parentesco  String?     // pai | mae | conjugue | filho | tutor | outro
+  telefone    String?
+  email       String?
+  observacoes String?
+  pacienteId  Int?        @map("paciente_id")
+  criadoPorId Int?        @map("criado_por_id")
+  criadoEm    DateTime    @default(now()) @map("criado_em")
+
+  criadoPor Utilizador? @relation("ResponsaveisCriados", fields: [criadoPorId], references: [id])
+
+  @@index([pacienteId])
+  @@map("responsaveis")
+}
+
+// ---------------------------------------------------------------------------
+// Atendimento (base comum Consulta/Urgência)
+// ---------------------------------------------------------------------------
+model Atendimento {
+  id              Int      @id @default(autoincrement())
+  codigo          String   @unique @map("codigo") // ex: AT-2026-0001
+  tipo            String   @map("tipo") // CONSULTA | URGENCIA
+  pacienteId      Int      @map("paciente_id")
+  estado          String   @default("AGUARDANDO") // AGUARDANDO | EM_TRIAGEM | EM_ATENDIMENTO | CONCLUIDO | CANCELADO | ENCAMINHADO
+  especialidadeId Int?     @map("especialidade_id")
+  prioridade      String   @default("Normal") // Normal | Prioridade | Urgente
+  origem          String?  @map("origem") // rececao | balcao | telefono | outra
+  procedenciaId   Int?     @map("procedencia_id")
+  criadoPorId     Int?     @map("criado_por_id")
+  criadoEm        DateTime @default(now()) @map("criado_em")
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em")
+
+  paciente        Paciente             @relation(fields: [pacienteId], references: [id])
+  criadoPor       Utilizador?          @relation("AtendimentosCriados", fields: [criadoPorId], references: [id])
+  especialidade   Especialidade?       @relation(fields: [especialidadeId], references: [id])
+  consulta        AtendimentoConsulta?
+  urgencia        AtendimentoUrgencia?
+  triagem         Triagem?
+  filaAtendimento FilaAtendimento?
+  senha           SenhaAtendimento?
+  encaminhamentos Encaminhamento[]
+
+  @@index([pacienteId])
+  @@index([tipo])
+  @@index([estado])
+  @@index([especialidadeId])
+  @@index([criadoEm])
+  @@map("atendimentos")
+}
+
+// ---------------------------------------------------------------------------
+// Atendimento — Consulta
+// ---------------------------------------------------------------------------
+model AtendimentoConsulta {
+  id              Int       @id @default(autoincrement())
+  atendimentoId   Int       @unique @map("atendimento_id")
+  pacienteId      Int       @map("paciente_id")
+  agendamentoId   Int?      @unique @map("agendamento_id")
+  especialidadeId Int?      @map("especialidade_id")
+  medicoId        Int?      @map("medico_id")
+  tipoConsulta    String?   @map("tipo_consulta") // primeira | retorno | revisao | outro
+  motivo          String?
+  sinaisSintomas  String?   @map("sinais_sintomas")
+  diagnostico     String?
+  prescricao      String?
+  observacoes     String?
+  iniciadoEm      DateTime? @map("iniciado_em")
+  concluidoEm     DateTime? @map("concluido_em")
+  criadoPorId     Int?      @map("criado_por_id")
+  criadoEm        DateTime  @default(now()) @map("criado_em")
+
+  atendimento  Atendimento          @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+  paciente     Paciente             @relation(fields: [pacienteId], references: [id])
+  especialidade Especialidade?      @relation(fields: [especialidadeId], references: [id])
+  medico       Utilizador?          @relation("AtendimentoConsultaMedico", fields: [medicoId], references: [id])
+  criadoPor    Utilizador?          @relation("AtendimentoConsultaCriado", fields: [criadoPorId], references: [id])
+  agendamento  AgendamentoConsulta? @relation(fields: [agendamentoId], references: [id])
+
+  @@index([pacienteId])
+  @@index([especialidadeId])
+  @@index([iniciadoEm])
+  @@map("atendimentos_consulta")
+}
+
+// ---------------------------------------------------------------------------
+// Atendimento — Urgência (BUM | BUP | BUCO)
+// ---------------------------------------------------------------------------
+model AtendimentoUrgencia {
+  id                Int       @id @default(autoincrement())
+  atendimentoId     Int       @unique @map("atendimento_id")
+  pacienteId        Int       @map("paciente_id")
+  bancoUrgenciaId   Int?      @map("banco_urgencia_id")
+  classificacaoId   Int?      @map("classificacao_id")
+  queixaPrincipal   String?   @map("queixa_principal")
+  horaChegada       DateTime  @default(now()) @map("hora_chegada")
+  medicoId          Int?      @map("medico_id")
+  diagnostico       String?
+  conduta           String?
+  evolucao          String?
+  altaTipo          String?   @map("alta_tipo") // alta | internamento | transferencia | observacao
+  altaJustificativa String?   @map("alta_justificativa")
+  concluidoEm       DateTime? @map("concluido_em")
+  criadoPorId       Int?      @map("criado_por_id")
+  criadoEm          DateTime  @default(now()) @map("criado_em")
+
+  atendimento   Atendimento         @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+  paciente      Paciente            @relation(fields: [pacienteId], references: [id])
+  bancoUrgencia BancoUrgencia?      @relation(fields: [bancoUrgenciaId], references: [id])
+  medico        Utilizador?         @relation("AtendimentoUrgenciaMedico", fields: [medicoId], references: [id])
+  criadoPor     Utilizador?         @relation("AtendimentoUrgenciaCriado", fields: [criadoPorId], references: [id])
+  classificacao ClassificacaoRisco? @relation(fields: [classificacaoId], references: [id])
+
+  @@index([pacienteId])
+  @@index([bancoUrgenciaId])
+  @@index([horaChegada])
+  @@map("atendimentos_urgencia")
+}
+
+// ---------------------------------------------------------------------------
+// Triagem (enfermagem — classificação de risco)
+// ---------------------------------------------------------------------------
+model Triagem {
+  id               Int      @id @default(autoincrement())
+  atendimentoId    Int      @unique @map("atendimento_id")
+  pacienteId       Int      @map("paciente_id")
+  classificacaoId  Int      @map("classificacao_id")
+  enfermeiroId     Int?     @map("enfermeiro_id")
+  sinaisVitaisJson Json?    @map("sinais_vitais_json")
+  sintomas         String?
+  alergias         String?
+  historicoDoenca  String?  @map("historico_doenca")
+  medicacao        String?
+  observacoes      String?
+  realizadoEm      DateTime @default(now()) @map("realizado_em")
+
+  atendimento   Atendimento        @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+  paciente      Paciente           @relation(fields: [pacienteId], references: [id])
+  classificacao ClassificacaoRisco @relation(fields: [classificacaoId], references: [id])
+  enfermeiro    Utilizador?        @relation("TriagemEnfermeiro", fields: [enfermeiroId], references: [id])
+
+  @@index([pacienteId])
+  @@index([realizadoEm])
+  @@map("triagens")
+}
+
+// ---------------------------------------------------------------------------
+// Classificação de Risco (configurável)
+// ---------------------------------------------------------------------------
+model ClassificacaoRisco {
+  id          Int      @id @default(autoincrement())
+  nome        String   @unique
+  cor         String   @default("verde") // vermelho | laranja | amarelo | verde | azul
+  nivel       Int      @default(1)
+  descricao   String?
+  tempoMaximo Int?     @map("tempo_maximo") // minutos de meta de atendimento
+  ativo       Boolean  @default(true)
+  criadoPorId Int?     @map("criado_por_id")
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  criadoPor Utilizador?           @relation("ClassificacoesRiscoCriadas", fields: [criadoPorId], references: [id])
+  triagens  Triagem[]
+  urgencias AtendimentoUrgencia[]
+
+  @@index([nivel])
+  @@map("classificacoes_risco")
+}
+
+// ---------------------------------------------------------------------------
+// Fila de Atendimento (por especialidade/tipo)
+// ---------------------------------------------------------------------------
+model FilaAtendimento {
+  id              Int       @id @default(autoincrement())
+  atendimentoId   Int       @unique @map("atendimento_id")
+  tipoFila        String    @map("tipo_fila") // CONSULTA | URGENCIA
+  especialidadeId Int?      @map("especialidade_id")
+  posicao         Int       @default(0)
+  status          String    @default("EM_FILA") // EM_FILA | CHAMADO | EM_ATENDIMENTO | CONCLUIDO | CANCELADO
+  criadoPorId     Int?      @map("criado_por_id")
+  criadoEm        DateTime  @default(now()) @map("criado_em")
+  chamadoEm       DateTime? @map("chamado_em")
+  atendidoEm      DateTime? @map("atendido_em")
+
+  atendimento  Atendimento    @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+  criadoPor    Utilizador?    @relation("FilasGerenciadas", fields: [criadoPorId], references: [id])
+  especialidade Especialidade? @relation(fields: [especialidadeId], references: [id])
+
+  @@index([tipoFila])
+  @@index([especialidadeId])
+  @@index([status])
+  @@index([posicao])
+  @@map("filas_atendimento")
+}
+
+// ---------------------------------------------------------------------------
+// Senha de Atendimento (sistema de senhas)
+// ---------------------------------------------------------------------------
+model SenhaAtendimento {
+  id            Int       @id @default(autoincrement())
+  codigo        String    @unique // ex: C-001, U-001
+  tipo          String    @map("tipo") // CONSULTA | URGENCIA
+  pacienteId    Int       @map("paciente_id")
+  atendimentoId Int?      @unique @map("atendimento_id")
+  emitidaPorId  Int?      @map("emitida_por_id")
+  status        String    @default("EM_ESPERA") // EM_ESPERA | CHAMADA | EM_ATENDIMENTO | CONCLUIDA | CANCELADA
+  emitidaEm     DateTime  @default(now()) @map("emitida_em")
+  chamadaEm     DateTime? @map("chamada_em")
+
+  paciente    Paciente     @relation("SenhasPaciente", fields: [pacienteId], references: [id])
+  emitidaPor  Utilizador?  @relation("SenhasEmitidas", fields: [emitidaPorId], references: [id])
+  atendimento Atendimento? @relation(fields: [atendimentoId], references: [id])
+
+  @@index([pacienteId])
+  @@index([tipo])
+  @@index([status])
+  @@index([emitidaEm])
+  @@map("senhas_atendimento")
+}
+
+// ---------------------------------------------------------------------------
+// Encaminhamento (destino + motivo)
+// ---------------------------------------------------------------------------
+model Encaminhamento {
+  id            Int       @id @default(autoincrement())
+  atendimentoId Int       @map("atendimento_id")
+  pacienteId    Int       @map("paciente_id")
+  origemTipo    String    @map("origem_tipo") // CONSULTA | URGENCIA
+  destino       String    @map("destino") // especialidade | setor | instituicao
+  tipoDestino   String?   @map("tipo_destino") // interno | externo
+  motivo        String
+  prioridade    String    @default("Normal")
+  estado        String    @default("PENDENTE") // PENDENTE | AGUARDANDO | ACEITE | CONCLUIDO | RECUSADO | CANCELADO
+  criadoPorId   Int?      @map("criado_por_id")
+  criadoEm      DateTime  @default(now()) @map("criado_em")
+  aceiteEm      DateTime? @map("aceite_em")
+  concluidoEm   DateTime? @map("concluido_em")
+
+  atendimento Atendimento @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+  paciente    Paciente    @relation("EncaminhamentosEnviados", fields: [pacienteId], references: [id])
+  criadoPor   Utilizador? @relation("EncaminhamentosCriados", fields: [criadoPorId], references: [id])
+
+  @@index([atendimentoId])
+  @@index([pacienteId])
+  @@index([destino])
+  @@index([estado])
+  @@map("encaminhamentos")
+}
+
+// ---------------------------------------------------------------------------
+// Agendamento de Consulta
+// ---------------------------------------------------------------------------
+model AgendamentoConsulta {
+  id              Int      @id @default(autoincrement())
+  pacienteId      Int      @map("paciente_id")
+  atendimentoId   Int?     @map("atendimento_id")
+  especialidadeId Int?
+  medicoId        Int?     @map("medico_id")
+  dataHora        DateTime @map("data_hora")
+  duracaoMin      Int      @default(30) @map("duracao_min")
+  estado          String   @default("AGENDADO") // AGENDADO | CONFIRMADO | CHEGOU | CANCELADO | CONCLUIDO
+  observacoes     String?
+  criadoPorId     Int?     @map("criado_por_id")
+  criadoEm        DateTime @default(now()) @map("criado_em")
+
+  medico        Utilizador?          @relation("AgendamentoConsultaMedico", fields: [medicoId], references: [id])
+  criadoPor     Utilizador?          @relation("AgendamentoConsultaCriado", fields: [criadoPorId], references: [id])
+  especialidade Especialidade?       @relation(fields: [especialidadeId], references: [id])
+  consulta      AtendimentoConsulta?
+
+  @@index([pacienteId])
+  @@index([especialidadeId])
+  @@index([dataHora])
+  @@index([estado])
+  @@map("agendamentos_consulta")
 }
 
 model Tecnico {

@@ -38,8 +38,11 @@ BrainCircuit,
   TrendingUp,
   FileSearch,
   UsersRound,
-  FlaskConical,
+FlaskConical,
   Bot,
+Siren,
+  Ambulance,
+  ArrowRightLeft,
 } from "lucide-react";
 
 const menuItems = [
@@ -79,8 +82,16 @@ const menuItems = [
   { href: "/cognitivo/previsao", label: "Previsão Inteligente", icon: TrendingUp },
   { href: "/cognitivo/segunda-opiniao", label: "Segunda Opinião", icon: FileSearch },
   { href: "/cognitivo/reunioes", label: "Reunião Clínica", icon: UsersRound },
-  { href: "/cognitivo/pesquisa", label: "Pesquisa Científica", icon: FlaskConical },
+{ href: "/cognitivo/pesquisa", label: "Pesquisa Científica", icon: FlaskConical },
   { href: "/cognitivo/ia-generativa", label: "IA Generativa", icon: Bot },
+
+  // Atendimento
+  { href: "/atendimento", label: "Atendimento", icon: Siren },
+  { href: "/atendimento/consultas", label: "Consultas", icon: Stethoscope },
+  { href: "/atendimento/urgencias", label: "Urgências", icon: Ambulance },
+  { href: "/atendimento/encaminhamentos", label: "Encaminhamentos", icon: ArrowRightLeft },
+  { href: "/atendimento/dashboard", label: "Dashboard Atend.", icon: TrendingUp },
+  { href: "/atendimento/relatorios", label: "Relatórios Atend.", icon: BarChart3 },
 ];
 
 const sidebarVariants = {
