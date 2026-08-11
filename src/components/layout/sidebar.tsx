@@ -3,229 +3,217 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { cn } from "@/utils/cn";
 import { useSession } from "next-auth/react";
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { temPermissao, MENU_MODULOS } from "@/lib/permissions";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  LayoutDashboard,
-  Users,
-  Microscope,
-  Image as ImageIcon,
-  Stethoscope,
-  Building2,
+  Activity,
+  Ambulance,
   BarChart3,
-  UserCog,
-  Settings,
-  Calendar,
-  Clock,
+  BellRing,
+  Bot,
+  BrainCircuit,
+  Building2,
+  CalendarDays,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
-HeartPulse,
-  ClipboardPlus,
+  ClipboardList,
+  Clock3,
+  FileText,
   History,
-  GitCompareArrows,
-  BellRing,
-  Phone,
-BrainCircuit,
-  Timeline,
-  Activity,
+  ImageIcon,
+  LayoutDashboard,
+  MessageCircle,
+  Microscope,
   ScanSearch,
-  Database,
-  AlertOctagon,
-  Map,
-  TrendingUp,
-  FileSearch,
+  Settings,
+  ShieldCheck,
+  Stethoscope,
+  UserCog,
+  Users,
   UsersRound,
-FlaskConical,
-  Bot,
-Siren,
-  Ambulance,
-  ArrowRightLeft,
 } from "lucide-react";
+import { cn } from "@/utils/cn";
+import { MENU_MODULOS, temPermissao } from "@/lib/permissions";
 
-const menuItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/pacientes", label: "Pacientes", icon: Users },
-  { href: "/agendamentos", label: "Agendamentos", icon: Calendar },
-  { href: "/turnos", label: "Turnos", icon: Clock },
+type MenuItem = {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+};
 
-  { href: "/exames", label: "Exames", icon: Microscope },
-  { href: "/imagens", label: "Imagens", icon: ImageIcon },
-  { href: "/tecnicos", label: "Técnicos", icon: Stethoscope },
-  { href: "/procedencias", label: "Procedências", icon: Building2 },
-  { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
-  { href: "/utilizadores", label: "Utilizadores", icon: UserCog },
-{ href: "/historico", label: "Histórico", icon: History },
-  { href: "/chamadas", label: "Chamadas", icon: Phone },
-  { href: "/configuracoes", label: "Configurações", icon: Settings },
+type MenuGroup = {
+  label: string;
+  items: MenuItem[];
+};
 
-  // Portal do Médico
-{ href: "/medico", label: "Dashboard Médico", icon: HeartPulse },
-  { href: "/medico/solicitar", label: "Solicitar Exame", icon: ClipboardPlus },
-  { href: "/medico/acompanhamento", label: "Acompanhamento", icon: History },
-  { href: "/medico/comparar", label: "Comparar Exames", icon: GitCompareArrows },
-{ href: "/medico/agenda", label: "Agenda", icon: Calendar },
-  { href: "/medico/notificacoes", label: "Notificações", icon: BellRing },
-
-  // Portal Médico Cognitivo
-  { href: "/cognitivo", label: "Dashboard Cognitivo", icon: BrainCircuit },
-  { href: "/cognitivo/linha-temporal", label: "Linha Temporal", icon: Timeline },
-  { href: "/cognitivo/digital-twin", label: "Digital Twin", icon: Activity },
-{ href: "/cognitivo/evolucao", label: "Evolução Radiológica", icon: GitCompareArrows },
-  { href: "/cognitivo/detector-mudancas", label: "Detector de Mudanças", icon: ScanSearch },
-  { href: "/cognitivo/assistente", label: "Assistente Explicável", icon: Stethoscope },
-  { href: "/cognitivo/memoria-clinica", label: "Memória Clínica", icon: Database },
-  { href: "/cognitivo/contradicoes", label: "Contradições", icon: AlertOctagon },
-  { href: "/cognitivo/radar-epidemiologico", label: "Radar Epidemiológico", icon: Map },
-  { href: "/cognitivo/previsao", label: "Previsão Inteligente", icon: TrendingUp },
-  { href: "/cognitivo/segunda-opiniao", label: "Segunda Opinião", icon: FileSearch },
-  { href: "/cognitivo/reunioes", label: "Reunião Clínica", icon: UsersRound },
-{ href: "/cognitivo/pesquisa", label: "Pesquisa Científica", icon: FlaskConical },
-  { href: "/cognitivo/ia-generativa", label: "IA Generativa", icon: Bot },
-
-  // Atendimento
-  { href: "/atendimento", label: "Atendimento", icon: Siren },
-  { href: "/atendimento/consultas", label: "Consultas", icon: Stethoscope },
-  { href: "/atendimento/urgencias", label: "Urgências", icon: Ambulance },
-  { href: "/atendimento/encaminhamentos", label: "Encaminhamentos", icon: ArrowRightLeft },
-  { href: "/atendimento/dashboard", label: "Dashboard Atend.", icon: TrendingUp },
-  { href: "/atendimento/relatorios", label: "Relatórios Atend.", icon: BarChart3 },
+const menuGroups: MenuGroup[] = [
+  {
+    label: "Visão geral",
+    items: [{ href: "/dashboard", label: "Painel de controlo", icon: LayoutDashboard }],
+  },
+  {
+    label: "Atendimento clínico",
+    items: [
+      { href: "/atendimento", label: "Atendimento", icon: Stethoscope },
+      { href: "/atendimento/consultas", label: "Consultas", icon: ClipboardList },
+      { href: "/atendimento/urgencias", label: "Urgências", icon: Ambulance },
+      { href: "/atendimento/encaminhamentos", label: "Encaminhamentos", icon: UsersRound },
+      { href: "/pacientes", label: "Pacientes", icon: Users },
+      { href: "/agendamentos", label: "Agendamentos", icon: CalendarDays },
+    ],
+  },
+  {
+    label: "Diagnóstico por imagem",
+    items: [
+      { href: "/exames", label: "Exames", icon: Microscope },
+      { href: "/imagens", label: "Imagens e arquivos", icon: ImageIcon },
+      { href: "/tipos-exame", label: "Catálogo de exames", icon: ClipboardList },
+      { href: "/procedencias", label: "Origem dos pedidos", icon: Building2 },
+    ],
+  },
+  {
+    label: "Corpo clínico",
+    items: [
+      { href: "/tecnicos", label: "Profissionais", icon: Stethoscope },
+      { href: "/turnos", label: "Turnos e escalas", icon: Clock3 },
+      { href: "/medico", label: "Portal médico", icon: Activity },
+      { href: "/medico/solicitar", label: "Solicitar exame", icon: FileText },
+    ],
+  },
+  {
+    label: "Inteligência clínica",
+    items: [
+      { href: "/cognitivo", label: "Centro cognitivo", icon: BrainCircuit },
+      { href: "/cognitivo/assistente", label: "Assistente clínico", icon: Bot },
+      { href: "/cognitivo/detector-mudancas", label: "Detector de alterações", icon: ScanSearch },
+    ],
+  },
+  {
+    label: "Gestão e suporte",
+    items: [
+      { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
+      { href: "/historico", label: "Auditoria e histórico", icon: History },
+      { href: "/chat", label: "Comunicação interna", icon: MessageCircle },
+      { href: "/chamadas", label: "Chamadas", icon: BellRing },
+      { href: "/utilizadores", label: "Utilizadores e acessos", icon: UserCog },
+      { href: "/configuracoes", label: "Configurações", icon: Settings },
+    ],
+  },
 ];
-
-const sidebarVariants = {
-  expanded: { width: 256 },
-  collapsed: { width: 64 },
-};
-
-const itemVariants = {
-  expanded: { opacity: 1, x: 0, display: "block" },
-  collapsed: { opacity: 0, x: -10, transitionEnd: { display: "none" } },
-};
 
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [collapsed, setCollapsed] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   if (!session) return null;
 
+  const visibleGroups = menuGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => {
+        if (session.user.role === "MEDICO" && item.href === "/exames") return false;
+        const modulo = MENU_MODULOS[item.href];
+        return !modulo || temPermissao(session.user.role, modulo);
+      }),
+    }))
+    .filter((group) => group.items.length > 0);
+
   return (
-    <motion.aside
-      initial={false}
-      animate={collapsed ? "collapsed" : "expanded"}
-      variants={sidebarVariants}
-      transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-      className="fixed left-0 top-0 z-40 flex h-screen flex-col border-r bg-card/80 shadow-2xl backdrop-blur-xl"
+    <aside
+      className={cn(
+        "fixed left-0 top-0 z-40 flex h-screen flex-col border-r bg-card/95 shadow-xl backdrop-blur",
+        "transition-[width] duration-300 ease-out",
+        collapsed ? "w-16" : "w-64"
+      )}
     >
-      {/* Logo */}
-      <div className={cn(
-        "flex h-16 items-center border-b shrink-0",
-        collapsed ? "justify-center px-2" : "px-4"
-      )}>
-        <Link href="/dashboard" className="flex items-center gap-3">
-          <Image
-            src="/logo.svg"
-            alt="Logo Imagiologia"
-            width={36}
-            height={36}
-            className="rounded-xl shadow-sm shrink-0"
-            priority
-          />
-          <AnimatePresence mode="wait">
-            {!collapsed && (
-              <motion.div
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: "auto" }}
-                exit={{ opacity: 0, width: 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                <span className="text-sm font-semibold tracking-tight">Imagiologia</span>
-                <p className="text-[10px] text-muted-foreground">Gestão Hospitalar</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+      <div className={cn("flex h-16 shrink-0 items-center border-b", collapsed ? "justify-center" : "px-4")}>
+        <Link href="/dashboard" className="flex min-w-0 items-center gap-3">
+          <Image src="/logo.svg" alt="Gestão Hospitalar" width={34} height={34} className="shrink-0 rounded-lg" priority />
+          {!collapsed && (
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold tracking-tight">Gestão Hospitalar</p>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-primary">Imagiologia</p>
+            </div>
+          )}
         </Link>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-1">
-{menuItems
-          .filter((item) => {
-            // Os médicos usam o Portal do Médico; não devem ver o módulo geral de Exames
-            if (session?.user?.role === "MEDICO" && item.href === "/exames") {
-              return false;
-            }
-            const modulo = MENU_MODULOS[item.href];
-            if (!modulo) return true;
-            return temPermissao(session?.user?.role, modulo);
-          })
-          .map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-            const Icon = item.icon;
-            return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                isActive
-                  ? "bg-primary/10 text-primary shadow-sm"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                collapsed && "justify-center px-2"
-              )}
-              title={collapsed ? item.label : undefined}
-            >
-              <Icon className={cn(
-                "h-5 w-5 shrink-0 transition-transform",
-                isActive && "scale-110"
-              )} />
-              <motion.span
-                variants={itemVariants}
-                initial={false}
-                animate={collapsed ? "collapsed" : "expanded"}
-                transition={{ duration: 0.2 }}
-                className="truncate"
-              >
-                {item.label}
-              </motion.span>
+      <nav className="flex-1 space-y-1 overflow-y-auto p-2" aria-label="Navegação principal">
+        {visibleGroups.map((group) => {
+          const groupIsActive = group.items.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+          const isOpen = openGroups[group.label] ?? groupIsActive;
 
-              {/* Tooltip for collapsed state */}
-              {collapsed && (
-                <div className="absolute left-full ml-2 hidden rounded-md border bg-popover px-2.5 py-1.5 text-xs font-medium shadow-md group-hover:block whitespace-nowrap z-50">
-                  {item.label}
-                  <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-popover" />
-                </div>
+          return (
+            <section key={group.label} className="py-1">
+              {!collapsed && (
+                <button
+                  type="button"
+                  onClick={() => setOpenGroups((current) => ({ ...current, [group.label]: !isOpen }))}
+                  className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:bg-muted"
+                  aria-expanded={isOpen}
+                >
+                  {group.label}
+                  <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !isOpen && "-rotate-90")} />
+                </button>
               )}
-
-              {/* Active indicator */}
-              {isActive && !collapsed && (
-                <motion.div
-                  layoutId="activeIndicator"
-                  className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-full bg-primary"
-                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                />
-              )}
-            </Link>
+              <AnimatePresence initial={false}>
+                {(collapsed || isOpen) && (
+                  <motion.div
+                    initial={collapsed ? false : { height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    {group.items.map((item) => {
+                      const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                      const Icon = item.icon;
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          title={collapsed ? item.label : undefined}
+                          className={cn(
+                            "group relative my-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                            isActive ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                            collapsed && "justify-center px-2"
+                          )}
+                        >
+                          <Icon className="h-4 w-4 shrink-0" />
+                          {!collapsed && <span className="truncate">{item.label}</span>}
+                          {collapsed && (
+                            <span className="pointer-events-none absolute left-full z-50 ml-3 hidden whitespace-nowrap rounded-md border bg-popover px-2.5 py-1.5 text-xs font-medium text-popover-foreground shadow-md group-hover:block">
+                              {item.label}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </section>
           );
         })}
       </nav>
 
-      {/* Collapse Button */}
-      <div className="border-t p-2 shrink-0">
+      <div className="shrink-0 border-t p-2">
+        <div className={cn("flex items-center gap-2 rounded-lg px-2 py-2 text-xs text-muted-foreground", collapsed && "justify-center")}>
+          <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600" />
+          {!collapsed && <span className="truncate">Sessão protegida</span>}
+        </div>
         <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="flex w-full items-center justify-center rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          type="button"
+          onClick={() => setCollapsed((value) => !value)}
+          className="flex w-full items-center justify-center rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
           aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
         >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
-          )}
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>
       </div>
-    </motion.aside>
+    </aside>
   );
 }
