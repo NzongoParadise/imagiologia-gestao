@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BellRing, ListOrdered, RotateCcw, UserRoundCheck, Volume2 } from "lucide-react";
+import { BellRing, ListOrdered, Printer, RotateCcw, UserRoundCheck, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,10 @@ function anunciar(nome: string, senha?: string) {
   window.speechSynthesis.speak(mensagem);
 }
 
+function escaparHtml(valor: string) {
+  return valor.replace(/[&<>\"]/g, (caractere) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[caractere] || caractere);
+}
+
 export function FilaAtendimentoClient({ fila }: FilaAtendimentoClientProps) {
   const router = useRouter();
   const { pode } = usePermissoes();
@@ -55,6 +59,19 @@ export function FilaAtendimentoClient({ fila }: FilaAtendimentoClientProps) {
   const aguardando = itens.filter((item) => item.status === "EM_FILA");
 
   const atualizar = () => router.refresh();
+
+  const imprimirFicha = (item: ItemFila) => {
+    const janela = window.open("", "_blank", "width=420,height=600");
+    if (!janela) {
+      toast.error("Permita janelas pop-up para imprimir a ficha");
+      return;
+    }
+
+    const senha = item.atendimento.senha?.codigo || item.atendimento.codigo;
+    const agora = new Intl.DateTimeFormat("pt-PT", { dateStyle: "short", timeStyle: "short" }).format(new Date());
+    janela.document.write(`<!doctype html><html lang="pt"><head><title>Ficha ${escaparHtml(senha)}</title><style>body{font-family:Arial,sans-serif;margin:0;padding:18px;color:#111}.ficha{border:2px dashed #111;padding:18px;text-align:center}.hospital{font-size:12px;font-weight:bold;letter-spacing:1px}.tipo{font-size:14px;margin:14px 0 6px}.senha{font-size:54px;font-weight:800;line-height:1}.nome{font-size:18px;font-weight:bold;margin:16px 0 4px}.detalhe{font-size:12px;color:#444;margin:4px 0}.rodape{border-top:1px dashed #555;margin-top:16px;padding-top:10px;font-size:10px;color:#555}@media print{body{padding:0}.ficha{border:0}}</style></head><body><main class="ficha"><div class="hospital">GESTAO HOSPITALAR</div><div class="tipo">${item.tipoFila === "CONSULTA" ? "FICHA DE CONSULTA" : "FICHA DE URGENCIA"}</div><div class="senha">${escaparHtml(senha)}</div><div class="nome">${escaparHtml(item.atendimento.paciente.nome)}</div><div class="detalhe">${escaparHtml(item.atendimento.especialidade?.nome || "Atendimento clinico")}</div><div class="detalhe">Prioridade: ${escaparHtml(item.atendimento.prioridade)}</div><div class="rodape">Emitida em ${escaparHtml(agora)}<br/>Apresente esta ficha quando for chamado.</div></main><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
+    janela.document.close();
+  };
 
   const chamar = async () => {
     setProcessando(true);
@@ -109,9 +126,14 @@ export function FilaAtendimentoClient({ fila }: FilaAtendimentoClientProps) {
           <p className="text-sm text-muted-foreground">Controle a ordem de atendimento e a chamada de pacientes.</p>
         </div>
         {pode("atendimento", "editar") && (
+          <>
+          <Button variant="outline" onClick={() => aguardando[0] && imprimirFicha(aguardando[0])} disabled={aguardando.length === 0}>
+            <Printer className="h-4 w-4" /> Imprimir ficha
+          </Button>
           <Button onClick={chamar} disabled={processando || aguardando.length === 0}>
             <BellRing className="h-4 w-4" /> Chamar próximo
           </Button>
+          </>
         )}
       </div>
 

@@ -27,6 +27,7 @@ export default async function ConsultasPage() {
         consulta: {
           include: { medico: { select: { id: true, nome: true } } },
         },
+        senha: { select: { codigo: true } },
         criadoPor: { select: { id: true, nome: true } },
       },
     }),
