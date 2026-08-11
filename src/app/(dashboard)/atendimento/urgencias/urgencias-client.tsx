@@ -11,10 +11,12 @@ import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
 import { EmptyState } from "@/components/ui/empty-state";
 import { usePermissoes } from "@/hooks/use-permissoes";
+import { PedidosEReceita, type MedicamentoFormulario, type PedidoFormulario } from "@/features/atendimento/components/pedidos-e-receita";
 import {
   iniciarUrgencia,
   registarTriagem,
   concluirUrgencia,
+  registarPedidosEReceita,
 } from "@/server/actions/atendimento-actions";
 
 interface BancoUrgencia {
@@ -62,6 +64,7 @@ interface UrgenciasClientProps {
   bancosUrgencia: BancoUrgencia[];
   classificacoesRisco: ClassificacaoRisco[];
   pacientes: Paciente[];
+  tiposExame: { id: number; nome: string; modalidade: string | null }[];
   atendimentos: UrgenciaAtendimento[];
 }
 
@@ -95,6 +98,7 @@ export function UrgenciasClient({
   bancosUrgencia,
   classificacoesRisco,
   pacientes,
+  tiposExame,
   atendimentos,
 }: UrgenciasClientProps) {
   const router = useRouter();
@@ -126,6 +130,9 @@ export function UrgenciasClient({
   const [evolucao, setEvolucao] = useState("");
   const [altaTipo, setAltaTipo] = useState("alta");
   const [altaJustificativa, setAltaJustificativa] = useState("");
+  const [pedidosExame, setPedidosExame] = useState<PedidoFormulario[]>([]);
+  const [medicamentos, setMedicamentos] = useState<MedicamentoFormulario[]>([]);
+  const [observacoesReceita, setObservacoesReceita] = useState("");
 
   const resetCriar = () => {
     setPacienteId("");
@@ -151,6 +158,9 @@ export function UrgenciasClient({
     setEvolucao("");
     setAltaTipo("alta");
     setAltaJustificativa("");
+    setPedidosExame([]);
+    setMedicamentos([]);
+    setObservacoesReceita("");
   };
 
   const handleCriar = async () => {
@@ -222,6 +232,12 @@ export function UrgenciasClient({
         evolucao: evolucao || undefined,
         altaTipo: altaTipo || undefined,
         altaJustificativa: altaJustificativa || undefined,
+      });
+      await registarPedidosEReceita({
+        atendimentoId: concluirOpen.id,
+        pedidosExame: pedidosExame.map((pedido) => ({ tipoExameId: Number(pedido.tipoExameId), prioridade: pedido.prioridade, justificativa: pedido.justificativa })),
+        medicamentos: medicamentos.map((medicamento) => ({ ...medicamento, duracaoDias: medicamento.duracaoDias ? Number(medicamento.duracaoDias) : undefined })),
+        observacoesReceita,
       });
       toast.success("Urgência concluída com sucesso");
       setConcluirOpen(null);
@@ -509,6 +525,15 @@ export function UrgenciasClient({
               />
             </div>
           </div>
+          <PedidosEReceita
+            tiposExame={tiposExame}
+            pedidos={pedidosExame}
+            medicamentos={medicamentos}
+            observacoes={observacoesReceita}
+            onPedidosChange={setPedidosExame}
+            onMedicamentosChange={setMedicamentos}
+            onObservacoesChange={setObservacoesReceita}
+          />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setTriagemOpen(null)} disabled={submitting}>
               Cancelar

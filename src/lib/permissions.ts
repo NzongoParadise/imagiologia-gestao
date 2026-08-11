@@ -141,6 +141,7 @@ const PERMISSOES: Record<Role, PermissaoString[]> = {
     "chat.criar",
     // Atendimento (consulta)
     "atendimento.ver",
+    "atendimento.editar",
   ],
 };
 

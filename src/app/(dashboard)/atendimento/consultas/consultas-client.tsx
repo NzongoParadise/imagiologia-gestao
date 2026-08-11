@@ -11,9 +11,11 @@ import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
 import { EmptyState } from "@/components/ui/empty-state";
 import { usePermissoes } from "@/hooks/use-permissoes";
+import { PedidosEReceita, type MedicamentoFormulario, type PedidoFormulario } from "@/features/atendimento/components/pedidos-e-receita";
 import {
   iniciarConsulta,
   concluirConsulta,
+  registarPedidosEReceita,
 } from "@/server/actions/atendimento-actions";
 
 interface Especialidade {
@@ -67,6 +69,7 @@ function imprimirFicha(ficha: FichaConsulta) {
 interface ConsultasClientProps {
   especialidades: Especialidade[];
   pacientes: Paciente[];
+  tiposExame: { id: number; nome: string; modalidade: string | null }[];
   atendimentos: ConsultaAtendimento[];
 }
 
@@ -91,6 +94,7 @@ const ESTADO_LABEL: Record<string, string> = {
 export function ConsultasClient({
   especialidades,
   pacientes,
+  tiposExame,
   atendimentos,
 }: ConsultasClientProps) {
   const router = useRouter();
@@ -113,6 +117,9 @@ export function ConsultasClient({
   const [observacoes, setObservacoes] = useState("");
   const [encDestino, setEncDestino] = useState("");
   const [encMotivo, setEncMotivo] = useState("");
+  const [pedidosExame, setPedidosExame] = useState<PedidoFormulario[]>([]);
+  const [medicamentos, setMedicamentos] = useState<MedicamentoFormulario[]>([]);
+  const [observacoesReceita, setObservacoesReceita] = useState("");
 
   const resetCriar = () => {
     setPacienteId("");
@@ -128,6 +135,9 @@ export function ConsultasClient({
     setObservacoes("");
     setEncDestino("");
     setEncMotivo("");
+    setPedidosExame([]);
+    setMedicamentos([]);
+    setObservacoesReceita("");
   };
 
   const handleCriar = async () => {
@@ -175,6 +185,12 @@ export function ConsultasClient({
         observacoes: observacoes || undefined,
         encaminharDestino: encDestino || undefined,
         encaminharMotivo: encMotivo || undefined,
+      });
+      await registarPedidosEReceita({
+        atendimentoId: concluirOpen.id,
+        pedidosExame: pedidosExame.map((pedido) => ({ tipoExameId: Number(pedido.tipoExameId), prioridade: pedido.prioridade, justificativa: pedido.justificativa })),
+        medicamentos: medicamentos.map((medicamento) => ({ ...medicamento, duracaoDias: medicamento.duracaoDias ? Number(medicamento.duracaoDias) : undefined })),
+        observacoesReceita,
       });
       toast.success("Consulta concluída com sucesso");
       setConcluirOpen(null);
@@ -419,6 +435,15 @@ export function ConsultasClient({
               />
             </div>
           </div>
+          <PedidosEReceita
+            tiposExame={tiposExame}
+            pedidos={pedidosExame}
+            medicamentos={medicamentos}
+            observacoes={observacoesReceita}
+            onPedidosChange={setPedidosExame}
+            onMedicamentosChange={setMedicamentos}
+            onObservacoesChange={setObservacoesReceita}
+          />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setConcluirOpen(null)} disabled={submitting}>
               Cancelar

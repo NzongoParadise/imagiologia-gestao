@@ -728,6 +728,94 @@ export async function concluirUrgencia(input: {
   revalidatePath("/atendimento/urgencias");
 }
 
+type PedidoExameInput = {
+  tipoExameId: number;
+  prioridade?: string;
+  justificativa?: string;
+};
+
+type MedicamentoReceitaInput = {
+  medicamento: string;
+  dosagem?: string;
+  via?: string;
+  frequencia?: string;
+  duracaoDias?: number;
+  quantidade?: string;
+  observacoes?: string;
+};
+
+export async function registarPedidosEReceita(input: {
+  atendimentoId: number;
+  pedidosExame?: PedidoExameInput[];
+  medicamentos?: MedicamentoReceitaInput[];
+  observacoesReceita?: string;
+}) {
+  const usuario = await autorizar("atendimento", "editar");
+  const pedidos = (input.pedidosExame || []).filter((pedido) => Number.isInteger(pedido.tipoExameId) && pedido.tipoExameId > 0);
+  const medicamentos = (input.medicamentos || []).filter((medicamento) => medicamento.medicamento.trim().length > 0);
+  if (pedidos.length === 0 && medicamentos.length === 0) return null;
+
+  const atendimento = await prisma.atendimento.findUnique({
+    where: { id: input.atendimentoId },
+    select: { id: true, pacienteId: true },
+  });
+  if (!atendimento) throw new Error("Atendimento não encontrado");
+
+  if (pedidos.length > 0) {
+    const tiposValidos = await prisma.tipoExame.count({ where: { id: { in: pedidos.map((pedido) => pedido.tipoExameId) }, ativo: true } });
+    if (tiposValidos !== new Set(pedidos.map((pedido) => pedido.tipoExameId)).size) throw new Error("Um dos tipos de exame selecionados não está disponível");
+  }
+
+  const criadoPorId = usuario.userId ? Number(usuario.userId) : null;
+  await prisma.$transaction(async (tx) => {
+    if (pedidos.length > 0) {
+      await tx.pedidoExame.createMany({
+        data: pedidos.map((pedido) => ({
+          atendimentoId: atendimento.id,
+          pacienteId: atendimento.pacienteId,
+          tipoExameId: pedido.tipoExameId,
+          prioridade: pedido.prioridade || "Normal",
+          justificativa: pedido.justificativa?.trim() || null,
+          criadoPorId,
+        })),
+      });
+    }
+    if (medicamentos.length > 0) {
+      await tx.receita.create({
+        data: {
+          atendimentoId: atendimento.id,
+          pacienteId: atendimento.pacienteId,
+          observacoes: input.observacoesReceita?.trim() || null,
+          criadoPorId,
+          medicamentos: {
+            create: medicamentos.map((medicamento, ordem) => ({
+              medicamento: medicamento.medicamento.trim(),
+              dosagem: medicamento.dosagem?.trim() || null,
+              via: medicamento.via?.trim() || null,
+              frequencia: medicamento.frequencia?.trim() || null,
+              duracaoDias: medicamento.duracaoDias || null,
+              quantidade: medicamento.quantidade?.trim() || null,
+              observacoes: medicamento.observacoes?.trim() || null,
+              ordem,
+            })),
+          },
+        },
+      });
+    }
+  });
+
+  await registarHistorico({
+    acao: "PRESCRICAO",
+    entidade: "ATENDIMENTO",
+    entidadeId: atendimento.id,
+    descricao: `${pedidos.length} pedido(s) de exame e ${medicamentos.length} medicamento(s) registados`,
+    pacienteId: atendimento.pacienteId,
+  });
+  revalidatePath("/atendimento/consultas");
+  revalidatePath("/atendimento/urgencias");
+  return { pedidos: pedidos.length, medicamentos: medicamentos.length };
+}
+
 // ---------------------------------------------------------------------------
 // Encaminhamentos
 // ---------------------------------------------------------------------------

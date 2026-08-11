@@ -55,6 +55,8 @@ model Utilizador {
   agendamentosMedicos         AgendamentoConsulta[]  @relation("AgendamentoConsultaMedico")
   agendamentosCriadosConsulta AgendamentoConsulta[]  @relation("AgendamentoConsultaCriado")
   responsaveisCriados         Responsavel[]          @relation("ResponsaveisCriados")
+  pedidosExameCriados         PedidoExame[]          @relation("PedidosExameCriados")
+  receitasCriadas             Receita[]              @relation("ReceitasCriadas")
 }
 
 model Paciente {
@@ -84,6 +86,8 @@ model Paciente {
   triagens                Triagem[]
   encaminhamentosEnviados Encaminhamento[]      @relation("EncaminhamentosEnviados")
   senhas                  SenhaAtendimento[]    @relation("SenhasPaciente")
+  pedidosExame            PedidoExame[]
+  receitas                Receita[]
 
   @@map("pacientes")
 }
@@ -175,6 +179,8 @@ model Atendimento {
   filaAtendimento FilaAtendimento?
   senha           SenhaAtendimento?
   encaminhamentos Encaminhamento[]
+  pedidosExame     PedidoExame[]
+  receitas         Receita[]
 
   @@index([pacienteId])
   @@index([tipo])
@@ -382,6 +388,67 @@ model Encaminhamento {
 }
 
 // ---------------------------------------------------------------------------
+// Pedidos de exame e receitas clinicas
+// ---------------------------------------------------------------------------
+model PedidoExame {
+  id            Int       @id @default(autoincrement())
+  atendimentoId Int       @map("atendimento_id")
+  pacienteId    Int       @map("paciente_id")
+  tipoExameId   Int       @map("tipo_exame_id")
+  prioridade    String    @default("Normal")
+  justificativa String?
+  estado        String    @default("PENDENTE")
+  criadoPorId   Int?      @map("criado_por_id")
+  criadoEm      DateTime  @default(now()) @map("criado_em")
+
+  atendimento Atendimento @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+  paciente    Paciente    @relation(fields: [pacienteId], references: [id])
+  tipoExame   TipoExame  @relation(fields: [tipoExameId], references: [id])
+  criadoPor   Utilizador? @relation("PedidosExameCriados", fields: [criadoPorId], references: [id])
+
+  @@index([atendimentoId])
+  @@index([pacienteId])
+  @@index([estado])
+  @@map("pedidos_exame")
+}
+
+model Receita {
+  id            Int       @id @default(autoincrement())
+  atendimentoId Int       @map("atendimento_id")
+  pacienteId    Int       @map("paciente_id")
+  observacoes   String?
+  criadoPorId   Int?      @map("criado_por_id")
+  criadoEm      DateTime  @default(now()) @map("criado_em")
+
+  atendimento  Atendimento  @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+  paciente     Paciente     @relation(fields: [pacienteId], references: [id])
+  criadoPor    Utilizador?  @relation("ReceitasCriadas", fields: [criadoPorId], references: [id])
+  medicamentos ReceitaMedicamento[]
+
+  @@index([atendimentoId])
+  @@index([pacienteId])
+  @@map("receitas")
+}
+
+model ReceitaMedicamento {
+  id           Int      @id @default(autoincrement())
+  receitaId    Int      @map("receita_id")
+  medicamento  String
+  dosagem      String?
+  via          String?
+  frequencia   String?
+  duracaoDias  Int?     @map("duracao_dias")
+  quantidade   String?
+  observacoes  String?
+  ordem        Int      @default(0)
+
+  receita Receita @relation(fields: [receitaId], references: [id], onDelete: Cascade)
+
+  @@index([receitaId])
+  @@map("receita_medicamentos")
+}
+
+// ---------------------------------------------------------------------------
 // Agendamento de Consulta
 // ---------------------------------------------------------------------------
 model AgendamentoConsulta {
@@ -443,6 +510,7 @@ model TipoExame {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   exames     Exame[]
+  pedidos    PedidoExame[]
 }
 
 model Exame {

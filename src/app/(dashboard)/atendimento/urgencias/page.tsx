@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function UrgenciasPage() {
   await verificarPermissao("atendimento");
 
-  const [bancosUrgencia, classificacoesRisco, pacientes, atendimentos] = await Promise.all([
+  const [bancosUrgencia, classificacoesRisco, pacientes, tiposExame, atendimentos] = await Promise.all([
     prisma.bancoUrgencia.findMany({
       where: { ativo: true },
       orderBy: { nome: "asc" },
@@ -21,6 +21,7 @@ export default async function UrgenciasPage() {
       take: 100,
       select: { id: true, nome: true, numeroProcesso: true },
     }),
+    prisma.tipoExame.findMany({ where: { ativo: true }, orderBy: { nome: "asc" }, select: { id: true, nome: true, modalidade: true } }),
     prisma.atendimento.findMany({
       where: { tipo: "URGENCIA" },
       orderBy: { criadoEm: "desc" },
@@ -46,6 +47,7 @@ export default async function UrgenciasPage() {
       bancosUrgencia={JSON.parse(JSON.stringify(bancosUrgencia))}
       classificacoesRisco={JSON.parse(JSON.stringify(classificacoesRisco))}
       pacientes={JSON.parse(JSON.stringify(pacientes))}
+      tiposExame={JSON.parse(JSON.stringify(tiposExame))}
       atendimentos={JSON.parse(JSON.stringify(atendimentos))}
     />
   );
