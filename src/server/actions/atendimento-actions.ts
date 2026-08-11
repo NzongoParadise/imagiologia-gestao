@@ -16,6 +16,7 @@ import { registarHistorico } from "./historico-actions";
 // ---------------------------------------------------------------------------
 
 export async function listarEspecialidades() {
+  await autorizar("atendimento", "ver");
   return prisma.especialidade.findMany({
     where: { ativo: true },
     orderBy: { nome: "asc" },
@@ -23,6 +24,7 @@ export async function listarEspecialidades() {
 }
 
 export async function listarBancosUrgencia() {
+  await autorizar("atendimento", "ver");
   return prisma.bancoUrgencia.findMany({
     where: { ativo: true },
     orderBy: { nome: "asc" },
@@ -30,6 +32,7 @@ export async function listarBancosUrgencia() {
 }
 
 export async function listarClassificacoesRisco() {
+  await autorizar("atendimento", "ver");
   return prisma.classificacaoRisco.findMany({
     where: { ativo: true },
     orderBy: { nivel: "asc" },
@@ -43,6 +46,7 @@ export async function listarAtendimentos(
   page = 1,
   limit = 20
 ) {
+  await autorizar("atendimento", "ver");
   const skip = (page - 1) * limit;
   const where: Record<string, unknown> = {};
 
@@ -90,6 +94,7 @@ export async function listarAtendimentos(
 }
 
 export async function obterAtendimento(id: number) {
+  await autorizar("atendimento", "ver");
   return prisma.atendimento.findUnique({
     where: { id },
     include: {
@@ -139,16 +144,6 @@ async function gerarCodigoAtendimento(tipo: string): Promise<string> {
   return `AT-${ano}-${prefixo}-${String(seq).padStart(4, "0")}`;
 }
 
-const SENHA_SEQUENCIA: Record<string, number> = {};
-
-async function gerarSenha(tipo: "CONSULTA" | "URGENCIA"): Promise<string> {
-  const hoje = new Date().toISOString().slice(0, 10);
-  const chave = `${tipo}-${hoje}`;
-  SENHA_SEQUENCIA[chave] = (SENHA_SEQUENCIA[chave] || 0) + 1;
-  const prefixo = tipo === "URGENCIA" ? "U" : "C";
-  return `${prefixo}-${String(SENHA_SEQUENCIA[chave]).padStart(3, "0")}`;
-}
-
 // ---------------------------------------------------------------------------
 // Consulta — criar atendimento
 // ---------------------------------------------------------------------------
@@ -162,10 +157,14 @@ export async function iniciarConsulta(input: {
   prioridade?: string;
   motivo?: string;
 }) {
-  await autorizar("atendimento", "criar");
+  const usuario = await autorizar("atendimento", "criar");
+
+  if (!Number.isInteger(input.pacienteId) || input.pacienteId <= 0) {
+    throw new Error("Selecione um paciente válido");
+  }
 
   const codigo = await gerarCodigoAtendimento("CONSULTA");
-  const senha = await gerarSenha("CONSULTA");
+  const criadoPorId = usuario.userId ? Number(usuario.userId) : null;
 
   // Transação: criar Atendimento + Consulta + Fila + Senha
   const atendimento = await prisma.$transaction(async (tx) => {
@@ -179,6 +178,7 @@ export async function iniciarConsulta(input: {
         origem: input.origem || "rececao",
         prioridade: input.prioridade || "Normal",
         estado: "AGUARDANDO",
+        criadoPorId,
       },
     });
 
@@ -189,6 +189,7 @@ export async function iniciarConsulta(input: {
         agendamentoId: input.agendamentoId || null,
         especialidadeId: input.especialidadeId || null,
         motivo: input.motivo || null,
+        criadoPorId,
       },
     });
 
@@ -204,11 +205,12 @@ export async function iniciarConsulta(input: {
         tipoFila: "CONSULTA",
         especialidadeId: input.especialidadeId || null,
         posicao: (ultimaPosicao._max.posicao || 0) + 1,
+        criadoPorId,
       },
     });
 
     const codigoSenha = await tx.senhaAtendimento.findFirst({
-      where: { tipo: "CONSULTA", emitidaEm: { gte: new Date()} },
+      where: { tipo: "CONSULTA" },
       orderBy: { emitidaEm: "desc" },
       select: { codigo: true },
     });
@@ -219,23 +221,25 @@ export async function iniciarConsulta(input: {
       if (!isNaN(num)) proximaSenha = num + 1;
     }
 
+    const senha = `C-${String(proximaSenha).padStart(3, "0")}`;
     await tx.senhaAtendimento.create({
       data: {
-        codigo: `C-${String(proximaSenha).padStart(3, "0")}`,
+        codigo: senha,
         tipo: "CONSULTA",
         pacienteId: input.pacienteId,
         atendimentoId: novo.id,
+        emitidaPorId: criadoPorId,
       },
     });
 
-    return novo;
+    return { ...novo, senha };
   });
 
   await registarHistorico({
     acao: "CRIACAO",
     entidade: "ATENDIMENTO",
     entidadeId: atendimento.id,
-    descricao: `Atendimento de consulta iniciado (${codigo}) — senha ${senha}`,
+    descricao: `Atendimento de consulta iniciado (${codigo}) — senha ${atendimento.senha}`,
     pacienteId: input.pacienteId,
   });
 
@@ -256,10 +260,14 @@ export async function iniciarUrgencia(input: {
   origem?: string;
   prioridade?: string;
 }) {
-  await autorizar("atendimento", "criar");
+  const usuario = await autorizar("atendimento", "criar");
+
+  if (!Number.isInteger(input.pacienteId) || input.pacienteId <= 0) {
+    throw new Error("Selecione um paciente válido");
+  }
 
   const codigo = await gerarCodigoAtendimento("URGENCIA");
-  const senha = await gerarSenha("URGENCIA");
+  const criadoPorId = usuario.userId ? Number(usuario.userId) : null;
 
   const atendimento = await prisma.$transaction(async (tx) => {
     const novo = await tx.atendimento.create({
@@ -271,6 +279,7 @@ export async function iniciarUrgencia(input: {
         origem: input.origem || "rececao",
         prioridade: input.prioridade || "Urgente",
         estado: "AGUARDANDO",
+        criadoPorId,
       },
     });
 
@@ -280,6 +289,7 @@ export async function iniciarUrgencia(input: {
         pacienteId: input.pacienteId,
         bancoUrgenciaId: input.bancoUrgenciaId || null,
         queixaPrincipal: input.queixaPrincipal || null,
+        criadoPorId,
       },
     });
 
@@ -293,11 +303,12 @@ export async function iniciarUrgencia(input: {
         atendimentoId: novo.id,
         tipoFila: "URGENCIA",
         posicao: (ultimaPosicao._max.posicao || 0) + 1,
+        criadoPorId,
       },
     });
 
     const codigoSenha = await tx.senhaAtendimento.findFirst({
-      where: { tipo: "URGENCIA", emitidaEm: { gte: new Date() } },
+      where: { tipo: "URGENCIA" },
       orderBy: { emitidaEm: "desc" },
       select: { codigo: true },
     });
@@ -308,23 +319,25 @@ export async function iniciarUrgencia(input: {
       if (!isNaN(num)) proximaSenha = num + 1;
     }
 
+    const senha = `U-${String(proximaSenha).padStart(3, "0")}`;
     await tx.senhaAtendimento.create({
       data: {
-        codigo: `U-${String(proximaSenha).padStart(3, "0")}`,
+        codigo: senha,
         tipo: "URGENCIA",
         pacienteId: input.pacienteId,
         atendimentoId: novo.id,
+        emitidaPorId: criadoPorId,
       },
     });
 
-    return novo;
+    return { ...novo, senha };
   });
 
   await registarHistorico({
     acao: "CRIACAO",
     entidade: "ATENDIMENTO",
     entidadeId: atendimento.id,
-    descricao: `Atendimento de urgência iniciado (${codigo}) — senha ${senha}`,
+    descricao: `Atendimento de urgência iniciado (${codigo}) — senha ${atendimento.senha}`,
     pacienteId: input.pacienteId,
   });
 
@@ -347,7 +360,9 @@ export async function registarTriagem(input: {
   medicacao?: string;
   observacoes?: string;
 }) {
-  await autorizar("atendimento", "editar");
+  if (!Number.isInteger(input.atendimentoId) || !Number.isInteger(input.classificacaoId)) {
+    throw new Error("Dados de triagem inválidos");
+  }
 
   const atend = await prisma.atendimento.findUnique({
     where: { id: input.atendimentoId },
@@ -355,10 +370,16 @@ export async function registarTriagem(input: {
   });
   if (!atend) throw new Error("Atendimento não encontrado");
 
-const usuario = await autorizar("atendimento", "editar");
+  const usuario = await autorizar("atendimento", "editar");
   const enfermeiroId = usuario.userId ? Number(usuario.userId) : null;
 
   await prisma.$transaction(async (tx) => {
+    const triagemExistente = await tx.triagem.findUnique({
+      where: { atendimentoId: input.atendimentoId },
+      select: { id: true },
+    });
+    if (triagemExistente) throw new Error("Este atendimento já possui triagem registada");
+
     // Atualizar estado do atendimento
     await tx.atendimento.update({
       where: { id: input.atendimentoId },
@@ -415,9 +436,21 @@ export async function chamarProximo(tipoFila: "CONSULTA" | "URGENCIA") {
       status: "EM_FILA",
       atendimento: { estado: { in: ["AGUARDANDO", "EM_TRIAGEM"] } },
     },
-    orderBy: [{ posicao: "asc" }, { criadoEm: "asc" }],
+    orderBy:
+      tipoFila === "URGENCIA"
+        ? [
+            { atendimento: { urgencia: { classificacao: { nivel: "desc" } } } },
+            { posicao: "asc" },
+            { criadoEm: "asc" },
+          ]
+        : [{ posicao: "asc" }, { criadoEm: "asc" }],
     include: {
-      atendimento: { include: { paciente: { select: { id: true, nome: true } } } },
+      atendimento: {
+        include: {
+          paciente: { select: { id: true, nome: true } },
+          senha: { select: { codigo: true } },
+        },
+      },
     },
   });
 
@@ -454,6 +487,101 @@ export async function chamarProximo(tipoFila: "CONSULTA" | "URGENCIA") {
   return proximo;
 }
 
+export async function listarFilaAtendimento(tipoFila?: "CONSULTA" | "URGENCIA") {
+  await autorizar("atendimento", "ver");
+
+  return prisma.filaAtendimento.findMany({
+    where: {
+      ...(tipoFila ? { tipoFila } : {}),
+      status: { in: ["EM_FILA", "CHAMADO"] },
+      atendimento: { estado: { in: ["AGUARDANDO", "EM_TRIAGEM", "EM_ATENDIMENTO"] } },
+    },
+    orderBy: [{ tipoFila: "asc" }, { posicao: "asc" }, { criadoEm: "asc" }],
+    include: {
+      atendimento: {
+        select: {
+          id: true,
+          codigo: true,
+          tipo: true,
+          estado: true,
+          prioridade: true,
+          paciente: { select: { id: true, nome: true, numeroProcesso: true } },
+          especialidade: { select: { nome: true } },
+          senha: { select: { codigo: true, status: true, chamadaEm: true } },
+          urgencia: { select: { classificacao: { select: { nome: true, cor: true, nivel: true } } } },
+        },
+      },
+    },
+  });
+}
+
+export async function repetirChamada(atendimentoId: number) {
+  await autorizar("atendimento", "editar");
+
+  const fila = await prisma.filaAtendimento.findFirst({
+    where: { atendimentoId, status: "CHAMADO" },
+    include: { atendimento: { include: { paciente: { select: { id: true, nome: true } } } } },
+  });
+  if (!fila) throw new Error("Não existe uma chamada ativa para este paciente");
+
+  await prisma.$transaction([
+    prisma.filaAtendimento.update({ where: { id: fila.id }, data: { chamadoEm: new Date() } }),
+    prisma.senhaAtendimento.updateMany({
+      where: { atendimentoId },
+      data: { status: "CHAMADA", chamadaEm: new Date() },
+    }),
+  ]);
+
+  await registarHistorico({
+    acao: "REPETIR_CHAMADA",
+    entidade: "ATENDIMENTO",
+    entidadeId: atendimentoId,
+    descricao: `Chamada repetida para ${fila.atendimento.paciente.nome}`,
+    pacienteId: fila.atendimento.pacienteId,
+  });
+
+  revalidatePath("/atendimento/fila");
+  revalidatePath("/atendimento/consultas");
+  revalidatePath("/atendimento/urgencias");
+}
+
+export async function devolverParaFila(atendimentoId: number) {
+  await autorizar("atendimento", "editar");
+
+  const fila = await prisma.filaAtendimento.findFirst({
+    where: { atendimentoId, status: "CHAMADO" },
+    include: { atendimento: { include: { paciente: { select: { id: true, nome: true } } } } },
+  });
+  if (!fila) throw new Error("Este paciente não possui uma chamada ativa");
+
+  await prisma.$transaction([
+    prisma.filaAtendimento.update({
+      where: { id: fila.id },
+      data: { status: "EM_FILA", chamadoEm: null },
+    }),
+    prisma.atendimento.update({
+      where: { id: atendimentoId },
+      data: { estado: fila.atendimento.tipo === "URGENCIA" ? "EM_TRIAGEM" : "AGUARDANDO" },
+    }),
+    prisma.senhaAtendimento.updateMany({
+      where: { atendimentoId },
+      data: { status: "EM_ESPERA", chamadaEm: null },
+    }),
+  ]);
+
+  await registarHistorico({
+    acao: "RETORNO_FILA",
+    entidade: "ATENDIMENTO",
+    entidadeId: atendimentoId,
+    descricao: `${fila.atendimento.paciente.nome} devolvido à fila de espera`,
+    pacienteId: fila.atendimento.pacienteId,
+  });
+
+  revalidatePath("/atendimento/fila");
+  revalidatePath("/atendimento/consultas");
+  revalidatePath("/atendimento/urgencias");
+}
+
 // ---------------------------------------------------------------------------
 // Consulta — concluir com diagnóstico/prescrição
 // ---------------------------------------------------------------------------
@@ -467,7 +595,6 @@ export async function concluirConsulta(input: {
   encaminharDestino?: string;
   encaminharMotivo?: string;
 }) {
-await autorizar("atendimento", "editar");
   const usuario = await autorizar("atendimento", "editar");
   const medicoId = usuario.userId ? Number(usuario.userId) : null;
 
@@ -550,7 +677,6 @@ export async function concluirUrgencia(input: {
   altaTipo?: string;
   altaJustificativa?: string;
 }) {
-await autorizar("atendimento", "editar");
   const usuario = await autorizar("atendimento", "editar");
   const medicoIdUrgencia = usuario.userId ? Number(usuario.userId) : null;
 
@@ -607,6 +733,7 @@ await autorizar("atendimento", "editar");
 // ---------------------------------------------------------------------------
 
 export async function listarEncaminhamentos(estado?: string, page = 1, limit = 20) {
+  await autorizar("atendimento", "ver");
   const skip = (page - 1) * limit;
   const where: Record<string, unknown> = {};
   if (estado) where.estado = estado;

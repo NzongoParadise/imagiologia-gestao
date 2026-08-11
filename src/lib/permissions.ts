@@ -209,6 +209,7 @@ export const MENU_MODULOS: Record<string, Modulo> = {
   "/atendimento/consultas": "atendimento",
   "/atendimento/urgencias": "atendimento",
   "/atendimento/encaminhamentos": "atendimento",
+  "/atendimento/fila": "atendimento",
   "/atendimento/dashboard": "atendimento",
   "/atendimento/relatorios": "atendimento",
 };
