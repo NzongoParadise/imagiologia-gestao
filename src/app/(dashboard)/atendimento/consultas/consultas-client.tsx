@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { UserPlus, PhoneCall, CheckCircle2, ArrowRightLeft, Printer, Stethoscope } from "lucide-react";
@@ -29,6 +29,17 @@ interface Paciente {
   id: number;
   nome: string;
   numeroProcesso: string | null;
+}
+
+interface Consultorio {
+  id: number;
+  numero: string;
+  nome: string;
+  especialidade?: {
+    id: number;
+    nome: string;
+  };
+  capacidade: number;
 }
 
 interface ConsultaAtendimento {
@@ -103,12 +114,41 @@ export function ConsultasClient({
   const [concluirOpen, setConcluirOpen] = useState<ConsultaAtendimento | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [ultimaFicha, setUltimaFicha] = useState<FichaConsulta | null>(null);
+  const [consultórios, setConsultórios] = useState<Consultorio[]>([]);
+  const [carregandoConsultórios, setCarregandoConsultórios] = useState(false);
 
   // Form estado
   const [pacienteId, setPacienteId] = useState("");
   const [especialidadeId, setEspecialidadeId] = useState("");
+  const [consultorioId, setConsultorioId] = useState("");
   const [motivo, setMotivo] = useState("");
   const [prioridade, setPrioridade] = useState("Normal");
+
+  // Carregar consultórios quando especialidade muda
+  useEffect(() => {
+    if (!especialidadeId) {
+      setConsultórios([]);
+      setConsultorioId("");
+      return;
+    }
+
+    const carregarConsultórios = async () => {
+      setCarregandoConsultórios(true);
+      try {
+        const response = await fetch(
+          `/api/consultórios?especialidadeId=${especialidadeId}`
+        );
+        const dados = await response.json();
+        setConsultórios(dados);
+      } catch (error) {
+        console.error("Erro ao carregar consultórios:", error);
+      } finally {
+        setCarregandoConsultórios(false);
+      }
+    };
+
+    carregarConsultórios();
+  }, [especialidadeId]);
 
   // Form concluir
   const [diagnostico, setDiagnostico] = useState("");
@@ -124,6 +164,7 @@ export function ConsultasClient({
   const resetCriar = () => {
     setPacienteId("");
     setEspecialidadeId("");
+    setConsultorioId("");
     setMotivo("");
     setPrioridade("Normal");
   };
@@ -150,6 +191,7 @@ export function ConsultasClient({
       const atendimento = await iniciarConsulta({
         pacienteId: Number(pacienteId),
         especialidadeId: especialidadeId ? Number(especialidadeId) : undefined,
+        consultorioId: consultorioId ? Number(consultorioId) : undefined,
         motivo: motivo || undefined,
         prioridade,
         origem: "rececao",
@@ -336,6 +378,25 @@ export function ConsultasClient({
               placeholder="Selecione a especialidade"
               value={especialidadeId}
               onChange={(e) => setEspecialidadeId(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Consultório</label>
+            <Select
+              options={consultórios.map((c) => ({
+                value: c.id,
+                label: `${c.numero} - ${c.nome}`,
+              }))}
+              placeholder={
+                carregandoConsultórios
+                  ? "A carregar consultórios..."
+                  : especialidadeId
+                  ? "Selecione um consultório"
+                  : "Selecione uma especialidade primeiro"
+              }
+              value={consultorioId}
+              onChange={(e) => setConsultorioId(e.target.value)}
+              disabled={!especialidadeId || carregandoConsultórios}
             />
           </div>
           <div>

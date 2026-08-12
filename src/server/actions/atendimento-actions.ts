@@ -152,6 +152,7 @@ export async function iniciarConsulta(input: {
   pacienteId: number;
   especialidadeId?: number;
   agendamentoId?: number;
+  consultorioId?: number;
   procedenciaId?: number;
   origem?: string;
   prioridade?: string;
@@ -174,6 +175,7 @@ export async function iniciarConsulta(input: {
         tipo: "CONSULTA",
         pacienteId: input.pacienteId,
         especialidadeId: input.especialidadeId || null,
+        consultorioId: input.consultorioId || null,
         procedenciaId: input.procedenciaId || null,
         origem: input.origem || "rececao",
         prioridade: input.prioridade || "Normal",

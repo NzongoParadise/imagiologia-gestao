@@ -138,10 +138,30 @@ model Consultorio {
   criadoPor     Utilizador?    @relation("ConsultoriosCriados", fields: [criadoPorId], references: [id])
   atendimentos  Atendimento[]
   agendamentos  AgendamentoConsulta[]
+  disponibilidades DisponibilidadeConsultorio[]
 
   @@index([especialidadeId])
   @@index([ativo])
   @@map("consultórios")
+}
+
+// ---------------------------------------------------------------------------
+// Disponibilidade de Consultório (horários de funcionamento)
+// ---------------------------------------------------------------------------
+model DisponibilidadeConsultorio {
+  id             Int      @id @default(autoincrement())
+  consultorioId  Int      @map("consultorio_id")
+  diaSemana      Int      // 0=Domingo, 1=Segunda, ..., 6=Sábado
+  horaAbertura   String   @map("hora_abertura") // ex: "09:00"
+  horaFechamento String   @map("hora_fechamento") // ex: "18:00"
+  ativo          Boolean  @default(true)
+  criadoEm       DateTime @default(now()) @map("criado_em")
+
+  consultorio Consultorio @relation(fields: [consultorioId], references: [id], onDelete: Cascade)
+
+  @@unique([consultorioId, diaSemana])
+  @@index([consultorioId])
+  @@map("disponibilidades_consultorio")
 }
 
 // ---------------------------------------------------------------------------

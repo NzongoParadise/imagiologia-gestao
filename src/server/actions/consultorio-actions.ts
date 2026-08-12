@@ -260,3 +260,93 @@ export async function obterEstatisticasConsultorio(consultorioId: number) {
     agendamentosProximos,
   };
 }
+
+// ============================================================================
+// DISPONIBILIDADES
+// ============================================================================
+
+// Definir horário de funcionamento
+export async function definirDisponibilidade(data: {
+  consultorioId: number;
+  diaSemana: number;
+  horaAbertura: string;
+  horaFechamento: string;
+}) {
+  const disponibilidade = await prisma.disponibilidadeConsultorio.upsert({
+    where: {
+      consultorioId_diaSemana: {
+        consultorioId: data.consultorioId,
+        diaSemana: data.diaSemana,
+      },
+    },
+    update: {
+      horaAbertura: data.horaAbertura,
+      horaFechamento: data.horaFechamento,
+      ativo: true,
+    },
+    create: {
+      consultorioId: data.consultorioId,
+      diaSemana: data.diaSemana,
+      horaAbertura: data.horaAbertura,
+      horaFechamento: data.horaFechamento,
+    },
+  });
+
+  return disponibilidade;
+}
+
+// Obter disponibilidades do consultório
+export async function obterDisponibilidades(consultorioId: number) {
+  const disponibilidades = await prisma.disponibilidadeConsultorio.findMany({
+    where: {
+      consultorioId,
+      ativo: true,
+    },
+    orderBy: {
+      diaSemana: "asc",
+    },
+  });
+
+  return disponibilidades;
+}
+
+// Desativar horário
+export async function desativarDisponibilidade(
+  consultorioId: number,
+  diaSemana: number
+) {
+  await prisma.disponibilidadeConsultorio.update({
+    where: {
+      consultorioId_diaSemana: {
+        consultorioId,
+        diaSemana,
+      },
+    },
+    data: {
+      ativo: false,
+    },
+  });
+}
+
+// Verificar se consultório está disponível
+export async function verificarDisponibilidade(
+  consultorioId: number,
+  dataHora: Date
+) {
+  const diaSemana = dataHora.getDay();
+  const horas = dataHora.getHours().toString().padStart(2, "0");
+  const minutos = dataHora.getMinutes().toString().padStart(2, "0");
+  const horaAtual = `${horas}:${minutos}`;
+
+  const disponibilidade = await prisma.disponibilidadeConsultorio.findFirst({
+    where: {
+      consultorioId,
+      diaSemana,
+      ativo: true,
+      horaAbertura: { lte: horaAtual },
+      horaFechamento: { gte: horaAtual },
+    },
+  });
+
+  return !!disponibilidade;
+}

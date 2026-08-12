@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowLeft, Clock, Users, Calendar } from "lucide-react";
+import HorarioConsultorioComponent from "@/components/consultorio/horario-consultorio";
 
 interface Consultorio {
   id: number;
@@ -45,7 +46,7 @@ export default function DetalhesConsultorioPage() {
   const [consultorio, setConsultorio] = useState<Consultorio | null>(null);
   const [estatisticas, setEstatisticas] = useState<Estatisticas | null>(null);
   const [loading, setLoading] = useState(true);
-  const [aba, setAba] = useState<"ativas" | "agendadas" | "historico">("ativas");
+  const [aba, setAba] = useState<"ativas" | "agendadas" | "historico" | "horarios">("ativas");
 
   useEffect(() => {
     async function carregarDados() {
@@ -117,17 +118,24 @@ export default function DetalhesConsultorioPage() {
             <p className="text-gray-600">{consultorio.nome}</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          {consultorio.especialidade && (
-            <Badge variant="secondary">{consultorio.especialidade.nome}</Badge>
-          )}
-          {consultorio.ativo ? (
-            <Badge variant="default" className="bg-green-600">
-              Ativo
-            </Badge>
-          ) : (
-            <Badge variant="destructive">Inativo</Badge>
-          )}
+        <div className="flex gap-2 items-center">
+          <div className="flex gap-2">
+            {consultorio.especialidade && (
+              <Badge variant="secondary">{consultorio.especialidade.nome}</Badge>
+            )}
+            {consultorio.ativo ? (
+              <Badge variant="default" className="bg-green-600">
+                Ativo
+              </Badge>
+            ) : (
+              <Badge variant="destructive">Inativo</Badge>
+            )}
+          </div>
+          <Link href={`/dashboard/consultórios/${consultorio.id}/editar`}>
+            <Button variant="outline" size="sm">
+              Editar
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -235,6 +243,12 @@ export default function DetalhesConsultorioPage() {
                 onClick={() => setAba("historico")}
               >
                 Concluídas ({consultasConcluidasHoje.length})
+              </Button>
+              <Button
+                variant={aba === "horarios" ? "default" : "outline"}
+                onClick={() => setAba("horarios")}
+              >
+                Horários
               </Button>
             </div>
           </div>
@@ -349,6 +363,10 @@ export default function DetalhesConsultorioPage() {
                 ))
               )}
             </div>
+          )}
+
+          {aba === "horarios" && (
+            <HorarioConsultorioComponent consultorioId={consultorioId} />
           )}
         </CardContent>
       </Card>
