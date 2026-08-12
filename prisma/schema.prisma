@@ -55,6 +55,7 @@ model Utilizador {
   agendamentosMedicos         AgendamentoConsulta[]  @relation("AgendamentoConsultaMedico")
   agendamentosCriadosConsulta AgendamentoConsulta[]  @relation("AgendamentoConsultaCriado")
   responsaveisCriados         Responsavel[]          @relation("ResponsaveisCriados")
+  consultoriosCriados         Consultorio[]          @relation("ConsultoriosCriados")
   pedidosExameCriados         PedidoExame[]          @relation("PedidosExameCriados")
   receitasCriadas             Receita[]              @relation("ReceitasCriadas")
 }
@@ -109,10 +110,38 @@ model Especialidade {
   atendimentos        Atendimento[]
   atendimentosConsulta AtendimentoConsulta[]
   agendamentos        AgendamentoConsulta[]
+  consultoriosEspecialidade Consultorio[]
   filas               FilaAtendimento[]
 
   @@index([ativo])
   @@map("especialidades")
+}
+
+// ---------------------------------------------------------------------------
+// Consultório (salas de atendimento)
+// ---------------------------------------------------------------------------
+model Consultorio {
+  id              Int         @id @default(autoincrement())
+  numero          String      @unique // ex: Cons-01, Cons-02
+  nome            String      // ex: Consultório de Cardiologia
+  especialidadeId Int?        @map("especialidade_id")
+  andar           String?     // andar do prédio
+  bloco           String?     // bloco do hospital
+  capacidade      Int         @default(1)
+  equipamentos    String?     // ex: "Ecógrafo, Monitor, Estetoscópio"
+  ativo           Boolean     @default(true)
+  criadoPorId     Int?        @map("criado_por_id")
+  criadoEm        DateTime    @default(now()) @map("criado_em")
+  atualizadoEm    DateTime    @updatedAt @map("atualizado_em")
+
+  especialidade Especialidade? @relation(fields: [especialidadeId], references: [id])
+  criadoPor     Utilizador?    @relation("ConsultoriosCriados", fields: [criadoPorId], references: [id])
+  atendimentos  Atendimento[]
+  agendamentos  AgendamentoConsulta[]
+
+  @@index([especialidadeId])
+  @@index([ativo])
+  @@map("consultórios")
 }
 
 // ---------------------------------------------------------------------------
@@ -163,6 +192,7 @@ model Atendimento {
   pacienteId      Int      @map("paciente_id")
   estado          String   @default("AGUARDANDO") // AGUARDANDO | EM_TRIAGEM | EM_ATENDIMENTO | CONCLUIDO | CANCELADO | ENCAMINHADO
   especialidadeId Int?     @map("especialidade_id")
+  consultorioId   Int?     @map("consultorio_id")
   prioridade      String   @default("Normal") // Normal | Prioridade | Urgente
   origem          String?  @map("origem") // rececao | balcao | telefono | outra
   procedenciaId   Int?     @map("procedencia_id")
@@ -173,6 +203,7 @@ model Atendimento {
   paciente        Paciente             @relation(fields: [pacienteId], references: [id])
   criadoPor       Utilizador?          @relation("AtendimentosCriados", fields: [criadoPorId], references: [id])
   especialidade   Especialidade?       @relation(fields: [especialidadeId], references: [id])
+  consultorio     Consultorio?         @relation(fields: [consultorioId], references: [id])
   consulta        AtendimentoConsulta?
   urgencia        AtendimentoUrgencia?
   triagem         Triagem?
@@ -186,6 +217,7 @@ model Atendimento {
   @@index([tipo])
   @@index([estado])
   @@index([especialidadeId])
+  @@index([consultorioId])
   @@index([criadoEm])
   @@map("atendimentos")
 }
@@ -456,6 +488,7 @@ model AgendamentoConsulta {
   pacienteId      Int      @map("paciente_id")
   atendimentoId   Int?     @map("atendimento_id")
   especialidadeId Int?
+  consultorioId   Int?     @map("consultorio_id")
   medicoId        Int?     @map("medico_id")
   dataHora        DateTime @map("data_hora")
   duracaoMin      Int      @default(30) @map("duracao_min")
@@ -467,10 +500,12 @@ model AgendamentoConsulta {
   medico        Utilizador?          @relation("AgendamentoConsultaMedico", fields: [medicoId], references: [id])
   criadoPor     Utilizador?          @relation("AgendamentoConsultaCriado", fields: [criadoPorId], references: [id])
   especialidade Especialidade?       @relation(fields: [especialidadeId], references: [id])
+  consultorio   Consultorio?         @relation(fields: [consultorioId], references: [id])
   consulta      AtendimentoConsulta?
 
   @@index([pacienteId])
   @@index([especialidadeId])
+  @@index([consultorioId])
   @@index([dataHora])
   @@index([estado])
   @@map("agendamentos_consulta")
