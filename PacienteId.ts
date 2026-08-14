@@ -1,18 +1,18 @@
 import { ValueObject } from "@/domain/shared/base/ValueObject";
 
-export class PacienteId extends ValueObject<number> {
-  private constructor(id: number) {
+export class AtendimentoId extends ValueObject<string> {
+  private constructor(id: string) {
     super(id);
   }
 
-  public static create(id: number): PacienteId {
-    if (id === null || id === undefined || id <= 0) {
-      throw new Error("ID do Paciente inválido.");
+  public static create(id: string): AtendimentoId {
+    if (!id) {
+      throw new Error("ID do Atendimento não pode ser nulo ou vazio.");
     }
-    return new PacienteId(id);
+    return new AtendimentoId(id);
   }
 
-  public getValue(): number {
+  public getValue(): string {
     return this.props;
   }
 }
