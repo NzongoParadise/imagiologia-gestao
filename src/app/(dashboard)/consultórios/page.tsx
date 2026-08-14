@@ -29,7 +29,7 @@ export default function ConsultoriosPage() {
     async function carregarConsultórios() {
       try {
         const dados = await listarConsultorios();
-        setConsultórios(dados as Consultorio[]);
+        setConsultórios(dados as unknown as Consultorio[]);
       } catch (error) {
         console.error("Erro ao carregar consultórios:", error);
       } finally {

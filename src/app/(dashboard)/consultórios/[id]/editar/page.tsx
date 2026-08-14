@@ -11,13 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -223,23 +217,17 @@ export default function EditarConsultorioPage() {
               <div>
                 <Label htmlFor="especialidade">Especialidade</Label>
                 <Select
+                  id="especialidade"
                   value={form.especialidadeId}
-                  onValueChange={(value) =>
-                    setForm({ ...form, especialidadeId: value })
+                  onChange={(event) =>
+                    setForm({ ...form, especialidadeId: event.target.value })
                   }
-                >
-                  <SelectTrigger id="especialidade">
-                    <SelectValue placeholder="Selecionar especialidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Nenhuma</SelectItem>
-                    {especialidades.map((esp) => (
-                      <SelectItem key={esp.id} value={esp.id.toString()}>
-                        {esp.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Nenhuma"
+                  options={especialidades.map((esp) => ({
+                    value: esp.id,
+                    label: esp.nome,
+                  }))}
+                />
               </div>
 
               {/* Capacidade */}

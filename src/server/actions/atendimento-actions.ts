@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { autorizar } from "@/lib/permissions-server";
 import { registarHistorico } from "./historico-actions";
@@ -458,7 +457,7 @@ export async function chamarProximo(tipoFila: "CONSULTA" | "URGENCIA") {
 
   if (!proximo) return null;
 
-  const usuario = await autorizar("atendimento", "editar");
+  await autorizar("atendimento", "editar");
 
   await prisma.$transaction(async (tx) => {
     await tx.filaAtendimento.update({

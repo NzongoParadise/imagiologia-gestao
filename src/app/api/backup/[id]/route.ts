@@ -16,7 +16,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     }
 
 // Devolver metadados + dados em JSON plano (descomprimido) para download/restauro
-    const json = dadosParaDownload(backup.dados);
+    const json = dadosParaDownload(Buffer.from(backup.dados));
     return NextResponse.json({
       id: backup.id,
       nome: backup.nome,

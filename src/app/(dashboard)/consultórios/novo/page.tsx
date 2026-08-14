@@ -6,15 +6,7 @@ import { criarConsultorio } from "@/server/actions/consultorio-actions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 
@@ -40,7 +32,6 @@ export default function NovoConsultorioPage() {
   });
 
   useEffect(() => {
-    // Carregar especialidades
     async function carregarEspecialidades() {
       try {
         const response = await fetch("/api/especialidades");
@@ -62,7 +53,6 @@ export default function NovoConsultorioPage() {
     setLoading(true);
 
     try {
-      // Validações
       const novosErros: Record<string, string> = {};
 
       if (!form.numero.trim()) {
@@ -109,7 +99,6 @@ export default function NovoConsultorioPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Header */}
       <div className="flex items-center gap-4">
         <Link href="/dashboard/consultórios">
           <Button variant="ghost" size="icon">
@@ -122,7 +111,6 @@ export default function NovoConsultorioPage() {
         </div>
       </div>
 
-      {/* Formulário */}
       <Card>
         <CardHeader>
           <CardTitle>Informações do Consultório</CardTitle>
@@ -133,11 +121,11 @@ export default function NovoConsultorioPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Número */}
               <div>
-                <Label htmlFor="numero">Número do Consultório *</Label>
+                <label className="block text-sm font-medium mb-2">
+                  Número do Consultório *
+                </label>
                 <Input
-                  id="numero"
                   placeholder="ex: Cons-01"
                   value={form.numero}
                   onChange={(e) =>
@@ -150,11 +138,11 @@ export default function NovoConsultorioPage() {
                 )}
               </div>
 
-              {/* Nome */}
               <div>
-                <Label htmlFor="nome">Nome do Consultório *</Label>
+                <label className="block text-sm font-medium mb-2">
+                  Nome do Consultório *
+                </label>
                 <Input
-                  id="nome"
                   placeholder="ex: Consultório de Cardiologia"
                   value={form.nome}
                   onChange={(e) => setForm({ ...form, nome: e.target.value })}
@@ -165,33 +153,28 @@ export default function NovoConsultorioPage() {
                 )}
               </div>
 
-              {/* Especialidade */}
               <div>
-                <Label htmlFor="especialidade">Especialidade</Label>
+                <label className="block text-sm font-medium mb-2">
+                  Especialidade
+                </label>
                 <Select
+                  options={especialidades.map((esp) => ({
+                    value: esp.id.toString(),
+                    label: esp.nome,
+                  }))}
+                  placeholder="Selecionar especialidade"
                   value={form.especialidadeId}
-                  onValueChange={(value) =>
-                    setForm({ ...form, especialidadeId: value })
+                  onChange={(e) =>
+                    setForm({ ...form, especialidadeId: e.target.value })
                   }
-                >
-                  <SelectTrigger id="especialidade">
-                    <SelectValue placeholder="Selecionar especialidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {especialidades.map((esp) => (
-                      <SelectItem key={esp.id} value={esp.id.toString()}>
-                        {esp.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
 
-              {/* Capacidade */}
               <div>
-                <Label htmlFor="capacidade">Capacidade</Label>
+                <label className="block text-sm font-medium mb-2">
+                  Capacidade *
+                </label>
                 <Input
-                  id="capacidade"
                   type="number"
                   min="1"
                   value={form.capacidade}
@@ -207,22 +190,22 @@ export default function NovoConsultorioPage() {
                 )}
               </div>
 
-              {/* Bloco */}
               <div>
-                <Label htmlFor="bloco">Bloco</Label>
+                <label className="block text-sm font-medium mb-2">
+                  Bloco
+                </label>
                 <Input
-                  id="bloco"
                   placeholder="ex: Bloco A"
                   value={form.bloco}
                   onChange={(e) => setForm({ ...form, bloco: e.target.value })}
                 />
               </div>
 
-              {/* Andar */}
               <div>
-                <Label htmlFor="andar">Andar</Label>
+                <label className="block text-sm font-medium mb-2">
+                  Andar
+                </label>
                 <Input
-                  id="andar"
                   placeholder="ex: 2º Andar"
                   value={form.andar}
                   onChange={(e) => setForm({ ...form, andar: e.target.value })}
@@ -230,11 +213,12 @@ export default function NovoConsultorioPage() {
               </div>
             </div>
 
-            {/* Equipamentos */}
             <div>
-              <Label htmlFor="equipamentos">Equipamentos</Label>
-              <Textarea
-                id="equipamentos"
+              <label className="block text-sm font-medium mb-2">
+                Equipamentos
+              </label>
+              <textarea
+                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
                 placeholder="ex: Ecógrafo, Monitor, Estetoscópio"
                 value={form.equipamentos}
                 onChange={(e) =>
@@ -244,14 +228,12 @@ export default function NovoConsultorioPage() {
               />
             </div>
 
-            {/* Erro Geral */}
             {erros.submit && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
                 {erros.submit}
               </div>
             )}
 
-            {/* Botões */}
             <div className="flex gap-4 justify-end pt-4 border-t">
               <Link href="/dashboard/consultórios">
                 <Button variant="outline">Cancelar</Button>

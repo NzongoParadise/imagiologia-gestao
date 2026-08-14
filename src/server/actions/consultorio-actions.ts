@@ -65,9 +65,6 @@ export async function listarConsultorios(filters?: {
         where: {
           estado: { not: "CONCLUIDO" },
         },
-        include: {
-          paciente: true,
-        },
       },
     },
     orderBy: {
@@ -114,7 +111,6 @@ export async function obterConsultorioComConsultas(consultorioId: number) {
       },
       agendamentos: {
         include: {
-          paciente: true,
           medico: {
             select: {
               id: true,

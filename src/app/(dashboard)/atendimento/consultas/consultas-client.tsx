@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { UserPlus, PhoneCall, CheckCircle2, ArrowRightLeft, Printer, Stethoscope } from "lucide-react";
+import { UserPlus, CheckCircle2, Printer, Stethoscope } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -127,8 +127,6 @@ export function ConsultasClient({
   // Carregar consultórios quando especialidade muda
   useEffect(() => {
     if (!especialidadeId) {
-      setConsultórios([]);
-      setConsultorioId("");
       return;
     }
 
@@ -142,6 +140,7 @@ export function ConsultasClient({
         setConsultórios(dados);
       } catch (error) {
         console.error("Erro ao carregar consultórios:", error);
+        setConsultórios([]);
       } finally {
         setCarregandoConsultórios(false);
       }
@@ -414,7 +413,7 @@ export function ConsultasClient({
           <div>
             <label className="mb-1 block text-sm font-medium">Motivo</label>
             <textarea
-              className="min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
               placeholder="Motivo da consulta"
@@ -443,7 +442,7 @@ export function ConsultasClient({
           <div>
             <label className="mb-1 block text-sm font-medium">Sinais e Sintomas</label>
             <textarea
-              className="min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="min-h-15 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               value={sinaisSintomas}
               onChange={(e) => setSinaisSintomas(e.target.value)}
               placeholder="Sinais e sintomas"
@@ -452,7 +451,7 @@ export function ConsultasClient({
           <div>
             <label className="mb-1 block text-sm font-medium">Diagnóstico</label>
             <textarea
-              className="min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="min-h-15 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               value={diagnostico}
               onChange={(e) => setDiagnostico(e.target.value)}
               placeholder="Diagnóstico"
@@ -461,7 +460,7 @@ export function ConsultasClient({
           <div>
             <label className="mb-1 block text-sm font-medium">Prescrição</label>
             <textarea
-              className="min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="min-h-15 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               value={prescricao}
               onChange={(e) => setPrescricao(e.target.value)}
               placeholder="Prescrição / medicação"
@@ -470,7 +469,7 @@ export function ConsultasClient({
           <div>
             <label className="mb-1 block text-sm font-medium">Observações</label>
             <textarea
-              className="min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="min-h-15 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               value={observacoes}
               onChange={(e) => setObservacoes(e.target.value)}
               placeholder="Observações"

@@ -55,7 +55,7 @@ export default function DetalhesConsultorioPage() {
           obterConsultorioComConsultas(consultorioId),
           obterEstatisticasConsultorio(consultorioId),
         ]);
-        setConsultorio(consultorioData as Consultorio);
+        setConsultorio(consultorioData as unknown as Consultorio);
         setEstatisticas(estatisticasData as Estatisticas);
       } catch (error) {
         console.error("Erro ao carregar dados:", error);

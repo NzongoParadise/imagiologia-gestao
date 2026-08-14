@@ -387,14 +387,14 @@ export async function compararExamesComGemini(dados: {
  */
 export async function analisarImagemComIA(
   exameId: number,
-  imagem: { id: number; path: string; dados?: Buffer | null },
+  imagem: { id: number; path: string; dados?: Uint8Array | Buffer | null },
   utilizadorId: number | null,
   nomeTipoExame?: string
 ): Promise<AnaliseIA> {
   const inicio = Date.now();
 
   // 1. Invoca o motor de IA direto com os bytes da imagem (server-safe)
-  const bytes = imagem.dados ?? Buffer.from([]);
+  const bytes = imagem.dados ? Buffer.from(imagem.dados) : Buffer.from([]);
   const resultado = await diagnosticarImagemServer(imagem.id, bytes, nomeTipoExame);
 
   // 2. Normaliza para o formato persistido

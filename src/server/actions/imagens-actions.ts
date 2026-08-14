@@ -28,7 +28,7 @@ await autorizar("imagens", "ver");
   // 1. Motor de visão (server-safe) com os bytes da imagem.
   const resultado = await diagnosticarImagemServer(
     imagemId,
-    imagem.dados ?? Buffer.from([]),
+    imagem.dados ? Buffer.from(imagem.dados) : Buffer.from([]),
     nomeTipoExame
   );
 
