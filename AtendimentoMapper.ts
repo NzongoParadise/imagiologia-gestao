@@ -1,16 +1,12 @@
 import { Atendimento } from "@/domain/atendimento/entities/Atendimento";
 import { AtendimentoId } from "@/domain/atendimento/value-objects/AtendimentoId";
 import { EstadoAtendimento } from "@/domain/atendimento/value-objects/EstadoAtendimento";
-import {
-  Atendimento as PrismaAtendimento,
-  EstadoAtendimento as PrismaEstado,
-  PrioridadeAtendimento as PrismaPrioridade,
-} from "@prisma/client";
+import { Atendimento as PrismaAtendimento } from "@prisma/client";
 
-function toDomainEstado(estado: PrismaEstado): EstadoAtendimento {
+function toDomainEstado(estado: string): EstadoAtendimento {
   // Esta função garante que o estado vindo da base de dados é válido
   // para o nosso domínio. Lança um erro se for um valor inesperado.
-  return EstadoAtendimento.create(estado);
+  return EstadoAtendimento.create(estado as any); // O 'create' já valida a string
 }
 
 function toDomainPrioridade(
@@ -39,7 +35,7 @@ export class AtendimentoMapper {
 
   static toPersistence(atendimento: Atendimento): PrismaAtendimento {
     return {
-      id: Number(atendimento.getId().getValue()),
+      id: Number(atendimento.getId().getValue()), // Corrigido: Converte a string do ID de volta para número
       codigo: atendimento.getCodigo(),
       pacienteId: atendimento.getPacienteId(),
       especialidadeId: atendimento.getEspecialidadeId(),
