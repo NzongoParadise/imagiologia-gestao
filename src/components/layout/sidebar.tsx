@@ -59,6 +59,7 @@ const menuGroups: MenuGroup[] = [
     items: [
       { href: "/atendimento", label: "Atendimento", icon: Stethoscope },
       { href: "/atendimento/consultas", label: "Consultas", icon: ClipboardList },
+      { href: "/consultorios", label: "Consultórios", icon: Building2 },
       { href: "/atendimento/urgencias", label: "Urgências", icon: Ambulance },
       { href: "/atendimento/encaminhamentos", label: "Encaminhamentos", icon: UsersRound },
       { href: "/atendimento/fila", label: "Fila e chamadas", icon: ListOrdered },

@@ -205,7 +205,7 @@ export const MENU_MODULOS: Record<string, Modulo> = {
   "/cognitivo/reunioes": "cognitivo",
   "/cognitivo/pesquisa": "cognitivo",
   "/cognitivo/ia-generativa": "cognitivo",
-  // Atendimento
+  // Atendimento e Consultórios
   "/atendimento": "atendimento",
   "/atendimento/consultas": "atendimento",
   "/atendimento/urgencias": "atendimento",
@@ -213,4 +213,6 @@ export const MENU_MODULOS: Record<string, Modulo> = {
   "/atendimento/fila": "atendimento",
   "/atendimento/dashboard": "atendimento",
   "/atendimento/relatorios": "atendimento",
+  "/consultorios": "atendimento",
+  "/consultórios": "atendimento",
 };
