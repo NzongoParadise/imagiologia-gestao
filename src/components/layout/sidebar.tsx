@@ -60,6 +60,7 @@ const menuGroups: MenuGroup[] = [
       { href: "/atendimento", label: "Central de atendimento", icon: Stethoscope },
       { href: "/atendimento/consultas", label: "Consultas", icon: ClipboardList },
       { href: "/atendimento/urgencias", label: "Urgências", icon: Ambulance },
+      { href: "/atendimento/fila", label: "Gestão de filas", icon: ListOrdered },
       { href: "/consultorios", label: "Consultórios", icon: Building2 },
       { href: "/pacientes", label: "Pacientes", icon: Users },
       { href: "/agendamentos", label: "Agendamentos", icon: CalendarDays },
