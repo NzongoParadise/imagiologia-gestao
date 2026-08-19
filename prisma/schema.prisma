@@ -56,6 +56,7 @@ model Utilizador {
   agendamentosCriadosConsulta AgendamentoConsulta[]  @relation("AgendamentoConsultaCriado")
   responsaveisCriados         Responsavel[]          @relation("ResponsaveisCriados")
   consultoriosCriados         Consultorio[]          @relation("ConsultoriosCriados")
+  passwordResetTokens         PasswordResetToken[]   @relation("PasswordResetTokensUtilizador")
   pedidosExameCriados         PedidoExame[]          @relation("PedidosExameCriados")
   receitasCriadas             Receita[]              @relation("ReceitasCriadas")
 }
@@ -91,6 +92,23 @@ model Paciente {
   receitas                Receita[]
 
   @@map("pacientes")
+}
+
+// ---------------------------------------------------------------------------
+// Token de Recuperação de Password
+// ---------------------------------------------------------------------------
+model PasswordResetToken {
+  id          String   @id @unique @default(cuid())
+  token       String   @unique // O token seguro
+  expires     DateTime // Data de expiração do token
+  utilizadorId Int      @map("utilizador_id")
+  criadoEm    DateTime @default(now()) @map("criado_em")
+  utilizadoEm DateTime? @map("utilizado_em")
+
+  utilizador Utilizador @relation("PasswordResetTokensUtilizador", fields: [utilizadorId], references: [id], onDelete: Cascade)
+
+  @@index([utilizadorId])
+  @@map("password_reset_tokens")
 }
 
 // ===========================================================================

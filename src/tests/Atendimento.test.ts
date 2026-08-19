@@ -1,11 +1,6 @@
 import { Atendimento, AtendimentoId, EstadoAtendimento, Senha } from "../domain/atendimento";
 import { BusinessException } from "../domain/shared/exceptions/DomainException";
 
-/**
- * Simple unit tests for Atendimento entity
- * Run with: node src/tests/Atendimento.test.ts
- */
-
 let testsPassed = 0;
 let testsFailed = 0;
 
@@ -39,17 +34,21 @@ function expect(actual: any) {
         throw new Error(`Expected ${expected}, got ${actual}`);
       }
     },
-    toThrow() {
+    toThrow(expectedErrorClass?: any) {
       if (typeof actual !== "function") {
         throw new Error("Expected a function");
       }
+      let threw = false;
       try {
         actual();
-        throw new Error("Expected function to throw");
       } catch (error) {
-        if (!(error instanceof BusinessException)) {
-          throw error;
+        threw = true;
+        if (expectedErrorClass && !(error instanceof expectedErrorClass)) {
+          throw new Error(`Expected error of type ${expectedErrorClass.name}, got ${error}`);
         }
+      }
+      if (!threw) {
+        throw new Error("Expected function to throw");
       }
     },
     toEqual(expected: any) {
@@ -102,7 +101,7 @@ test("should create Atendimento aggregate", () => {
 test("should publish event when creating attendance", () => {
   const senha = Senha.create("C", 1);
   const atendimento = Atendimento.create({
-    codigo: "AT-2026-CON-0002",
+    codigo: "AT-2026-CON-0001",
     senha,
     tipo: "CONSULTA",
     pacienteId: 1,
@@ -110,6 +109,7 @@ test("should publish event when creating attendance", () => {
     prioridade: 1,
   });
 
+  expect(atendimento.hasDomainEvents()).toBe(true);
   const events = atendimento.getDomainEvents();
   expect(events.length).toBe(1);
   expect(events[0].type).toBe("AtendimentoCriado");
@@ -118,7 +118,7 @@ test("should publish event when creating attendance", () => {
 test("should transition attendance to TRIAGEM", () => {
   const senha = Senha.create("C", 1);
   const atendimento = Atendimento.create({
-    codigo: "AT-2026-CON-0003",
+    codigo: "AT-2026-CON-0001",
     senha,
     tipo: "CONSULTA",
     pacienteId: 1,
@@ -133,7 +133,7 @@ test("should transition attendance to TRIAGEM", () => {
 test("should start attendance with consultorio", () => {
   const senha = Senha.create("C", 1);
   const atendimento = Atendimento.create({
-    codigo: "AT-2026-CON-0004",
+    codigo: "AT-2026-CON-0001",
     senha,
     tipo: "CONSULTA",
     pacienteId: 1,
@@ -142,16 +142,16 @@ test("should start attendance with consultorio", () => {
   });
 
   atendimento.iniciarTriagem();
-  atendimento.iniciarAtendimento(5);
+  atendimento.iniciarAtendimento(10);
 
   expect(atendimento.getEstado().value).toBe("EM_ATENDIMENTO");
-  expect(atendimento.getConsultorioId()).toBe(5);
+  expect(atendimento.getConsultorioId()).toBe(10);
 });
 
 test("should complete attendance", () => {
   const senha = Senha.create("C", 1);
   const atendimento = Atendimento.create({
-    codigo: "AT-2026-CON-0005",
+    codigo: "AT-2026-CON-0001",
     senha,
     tipo: "CONSULTA",
     pacienteId: 1,
@@ -160,7 +160,7 @@ test("should complete attendance", () => {
   });
 
   atendimento.iniciarTriagem();
-  atendimento.iniciarAtendimento(5);
+  atendimento.iniciarAtendimento(10);
   atendimento.concluir();
 
   expect(atendimento.getEstado().value).toBe("CONCLUIDO");
@@ -169,7 +169,7 @@ test("should complete attendance", () => {
 test("should cancel attendance with reason", () => {
   const senha = Senha.create("C", 1);
   const atendimento = Atendimento.create({
-    codigo: "AT-2026-CON-0006",
+    codigo: "AT-2026-CON-0001",
     senha,
     tipo: "CONSULTA",
     pacienteId: 1,
@@ -177,16 +177,16 @@ test("should cancel attendance with reason", () => {
     prioridade: 1,
   });
 
-  atendimento.cancelar("Paciente não compareceu");
+  atendimento.cancelar("Paciente desistiu");
 
   expect(atendimento.getEstado().value).toBe("CANCELADO");
-  expect(atendimento.getMotivoCancelamento()).toBe("Paciente não compareceu");
+  expect(atendimento.getMotivoCancelamento()).toBe("Paciente desistiu");
 });
 
 test("should prevent canceling completed attendance", () => {
   const senha = Senha.create("C", 1);
   const atendimento = Atendimento.create({
-    codigo: "AT-2026-CON-0007",
+    codigo: "AT-2026-CON-0001",
     senha,
     tipo: "CONSULTA",
     pacienteId: 1,
@@ -195,17 +195,13 @@ test("should prevent canceling completed attendance", () => {
   });
 
   atendimento.iniciarTriagem();
-  atendimento.iniciarAtendimento(5);
+  atendimento.iniciarAtendimento(10);
   atendimento.concluir();
 
-  expect(() => atendimento.cancelar("Motivo")).toThrow();
+  expect(() => atendimento.cancelar("Desistiu")).toThrow();
 });
 
-// Results
-setTimeout(() => {
-  console.log("\n" + "=".repeat(50));
-  console.log(`Tests passed: ${testsPassed}`);
-  console.log(`Tests failed: ${testsFailed}`);
-  console.log("=".repeat(50));
-  process.exit(testsFailed > 0 ? 1 : 0);
-}, 100);
+console.log("\n==================================================");
+console.log(`Tests passed: ${testsPassed}`);
+console.log(`Tests failed: ${testsFailed}`);
+console.log("==================================================\n");

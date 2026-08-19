@@ -47,7 +47,7 @@ export class AtendimentoPrismaRepository implements IAtendimentoRepository {
   }
 
   async findAtivas(): Promise<Atendimento[]> {
-    return this.listar({ estado: { in: ATIVOS } });
+    return this.listar({ estado: { in: [...ATIVOS] } });
   }
 
   async findByEspecialidade(especialidadeId: number): Promise<Atendimento[]> {

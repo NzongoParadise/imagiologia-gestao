@@ -51,11 +51,13 @@
     "@types/node": "^20.19.43",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "awilix": "^13.0.5",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "prisma": "^6.4.1",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
   }
 }
