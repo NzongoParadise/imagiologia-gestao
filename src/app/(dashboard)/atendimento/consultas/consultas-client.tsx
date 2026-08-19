@@ -35,11 +35,14 @@ interface Consultorio {
   id: number;
   numero: string;
   nome: string;
+  especialidadeId?: number | null;
   especialidade?: {
     id: number;
     nome: string;
-  };
-  capacidade: number;
+  } | null;
+  capacidade?: number;
+  bloco?: string | null;
+  andar?: string | null;
 }
 
 interface ConsultaAtendimento {
@@ -82,6 +85,7 @@ interface ConsultasClientProps {
   pacientes: Paciente[];
   tiposExame: { id: number; nome: string; modalidade: string | null }[];
   atendimentos: ConsultaAtendimento[];
+  consultoriosIniciais?: Consultorio[];
 }
 
 const ESTADO_COR: Record<string, string> = {
@@ -107,6 +111,7 @@ export function ConsultasClient({
   pacientes,
   tiposExame,
   atendimentos,
+  consultoriosIniciais = [],
 }: ConsultasClientProps) {
   const router = useRouter();
   const { pode } = usePermissoes();
@@ -114,40 +119,65 @@ export function ConsultasClient({
   const [concluirOpen, setConcluirOpen] = useState<ConsultaAtendimento | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [ultimaFicha, setUltimaFicha] = useState<FichaConsulta | null>(null);
-  const [consultórios, setConsultórios] = useState<Consultorio[]>([]);
-  const [carregandoConsultórios, setCarregandoConsultórios] = useState(false);
+  const [todosConsultorios, setTodosConsultorios] = useState<Consultorio[]>(consultoriosIniciais);
+  const [carregandoConsultorios, setCarregandoConsultorios] = useState(false);
 
   // Form estado
   const [pacienteId, setPacienteId] = useState("");
   const [especialidadeId, setEspecialidadeId] = useState("");
   const [consultorioId, setConsultorioId] = useState("");
+  const [origem, setOrigem] = useState("rececao");
   const [motivo, setMotivo] = useState("");
   const [prioridade, setPrioridade] = useState("Normal");
 
-  // Carregar consultórios quando especialidade muda
+  // Carregar consultórios se a lista inicial estiver vazia
   useEffect(() => {
-    if (!especialidadeId) {
+    if (todosConsultorios.length === 0) {
+      setCarregandoConsultorios(true);
+      fetch("/api/consultorios")
+        .then((res) => (res.ok ? res.json() : []))
+        .then((dados) => {
+          if (Array.isArray(dados) && dados.length > 0) {
+            setTodosConsultorios(dados);
+          }
+        })
+        .catch((err) => console.error("Erro ao carregar consultórios:", err))
+        .finally(() => setCarregandoConsultorios(false));
+    }
+  }, [todosConsultorios.length]);
+
+  // Filtrar consultórios relevantes com base na especialidade selecionada
+  const consultoriosFiltrados = especialidadeId
+    ? todosConsultorios.filter(
+        (c) =>
+          c.especialidadeId === Number(especialidadeId) ||
+          c.especialidade?.id === Number(especialidadeId)
+      )
+    : todosConsultorios;
+
+  // Consultórios a apresentar no select (prioriza da especialidade, fallback para gerais/todos)
+  const consultoriosOpcoes = consultoriosFiltrados.length > 0
+    ? consultoriosFiltrados
+    : todosConsultorios;
+
+  // Auto-selecionar o consultório correspondente se houver correspondência exata
+  const handleEspecialidadeChange = (novoId: string) => {
+    setEspecialidadeId(novoId);
+    if (!novoId) {
+      setConsultorioId("");
       return;
     }
-
-    const carregarConsultórios = async () => {
-      setCarregandoConsultórios(true);
-      try {
-        const response = await fetch(
-          `/api/consultórios?especialidadeId=${especialidadeId}`
-        );
-        const dados = await response.json();
-        setConsultórios(dados);
-      } catch (error) {
-        console.error("Erro ao carregar consultórios:", error);
-        setConsultórios([]);
-      } finally {
-        setCarregandoConsultórios(false);
-      }
-    };
-
-    carregarConsultórios();
-  }, [especialidadeId]);
+    const correspondente = todosConsultorios.find(
+      (c) =>
+        c.especialidadeId === Number(novoId) ||
+        c.especialidade?.id === Number(novoId)
+    );
+    if (correspondente) {
+      setConsultorioId(String(correspondente.id));
+    } else {
+      setConsultorioId("");
+    }
+  };
 
   // Form concluir
   const [diagnostico, setDiagnostico] = useState("");
@@ -164,6 +194,7 @@ export function ConsultasClient({
     setPacienteId("");
     setEspecialidadeId("");
     setConsultorioId("");
+    setOrigem("rececao");
     setMotivo("");
     setPrioridade("Normal");
   };
@@ -193,7 +224,7 @@ export function ConsultasClient({
         consultorioId: consultorioId ? Number(consultorioId) : undefined,
         motivo: motivo || undefined,
         prioridade,
-        origem: "rececao",
+        origem,
       });
       const paciente = pacientes.find((item) => item.id === Number(pacienteId));
       const especialidade = especialidades.find((item) => item.id === Number(especialidadeId));
@@ -203,7 +234,7 @@ export function ConsultasClient({
         especialidade: especialidade?.nome || "Atendimento clinico",
         prioridade,
       });
-      toast.success("Consulta iniciada com sucesso");
+      toast.success("Consulta iniciada com sucesso!");
       setCriarOpen(false);
       resetCriar();
       router.refresh();
@@ -355,76 +386,146 @@ export function ConsultasClient({
         open={criarOpen}
         onClose={() => setCriarOpen(false)}
         title="Nova Consulta"
-        description="Iniciar um novo atendimento de consulta"
+        description="Iniciar um novo atendimento de consulta clínica"
+        size="lg"
       >
-        <div className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium">Paciente *</label>
+        <div className="space-y-5">
+          {/* Seção 1: Paciente */}
+          <div className="rounded-xl border bg-muted/30 p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-primary" />
+                Paciente *
+              </label>
+              {pacienteId && (
+                <Badge variant="outline" className="text-xs">
+                  {pacientes.find((p) => p.id === Number(pacienteId))?.numeroProcesso || "Sem processo"}
+                </Badge>
+              )}
+            </div>
             <Select
               options={pacientes.map((p) => ({
                 value: p.id,
                 label: `${p.nome}${p.numeroProcesso ? ` (${p.numeroProcesso})` : ""}`,
               }))}
-              placeholder="Selecione o paciente"
+              placeholder="Selecione o paciente cadastrado..."
               value={pacienteId}
               onChange={(e) => setPacienteId(e.target.value)}
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Especialidade</label>
-            <Select
-              options={especialidades.map((e) => ({ value: e.id, label: e.nome }))}
-              placeholder="Selecione a especialidade"
-              value={especialidadeId}
-              onChange={(e) => setEspecialidadeId(e.target.value)}
-            />
+
+          {/* Seção 2: Especialidade e Consultório */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">
+                Especialidade
+              </label>
+              <Select
+                options={especialidades.map((e) => ({ value: e.id, label: e.nome }))}
+                placeholder="Selecione a especialidade"
+                value={especialidadeId}
+                onChange={(e) => handleEspecialidadeChange(e.target.value)}
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-sm font-medium text-foreground">
+                  Consultório / Sala
+                </label>
+                {carregandoConsultorios && (
+                  <span className="text-xs text-muted-foreground animate-pulse">A carregar...</span>
+                )}
+              </div>
+              <Select
+                options={consultoriosOpcoes.map((c) => ({
+                  value: c.id,
+                  label: `${c.numero} — ${c.nome}${c.bloco ? ` (${c.bloco})` : ""}`,
+                }))}
+                placeholder={
+                  carregandoConsultorios
+                    ? "A carregar consultórios..."
+                    : consultoriosOpcoes.length > 0
+                    ? "Selecione o consultório"
+                    : "Nenhum consultório registado"
+                }
+                value={consultorioId}
+                onChange={(e) => setConsultorioId(e.target.value)}
+                disabled={carregandoConsultorios}
+              />
+            </div>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Consultório</label>
-            <Select
-              options={consultórios.map((c) => ({
-                value: c.id,
-                label: `${c.numero} - ${c.nome}`,
-              }))}
-              placeholder={
-                carregandoConsultórios
-                  ? "A carregar consultórios..."
-                  : especialidadeId
-                  ? "Selecione um consultório"
-                  : "Selecione uma especialidade primeiro"
-              }
-              value={consultorioId}
-              onChange={(e) => setConsultorioId(e.target.value)}
-              disabled={!especialidadeId || carregandoConsultórios}
-            />
+
+          {/* Seção 3: Prioridade e Origem */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">
+                Prioridade de Atendimento
+              </label>
+              <Select
+                options={[
+                  { value: "Normal", label: "Normal (Fluxo regular)" },
+                  { value: "Prioridade", label: "Prioridade (Idoso / Grávida / PCD)" },
+                  { value: "Urgente", label: "Urgente (Atenção imediata)" },
+                ]}
+                value={prioridade}
+                onChange={(e) => setPrioridade(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">
+                Origem / Balcão
+              </label>
+              <Select
+                options={[
+                  { value: "rececao", label: "Recepção Central" },
+                  { value: "balcao", label: "Balcão de Especialidades" },
+                  { value: "triagem", label: "Triagem Geral" },
+                  { value: "encaminhamento", label: "Encaminhamento Interno" },
+                ]}
+                value={origem}
+                onChange={(e) => setOrigem(e.target.value)}
+              />
+            </div>
           </div>
+
+          {/* Seção 4: Motivo da Consulta */}
           <div>
-            <label className="mb-1 block text-sm font-medium">Prioridade</label>
-            <Select
-              options={[
-                { value: "Normal", label: "Normal" },
-                { value: "Prioridade", label: "Prioridade" },
-                { value: "Urgente", label: "Urgente" },
-              ]}
-              value={prioridade}
-              onChange={(e) => setPrioridade(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Motivo</label>
+            <label className="mb-1.5 block text-sm font-medium text-foreground">
+              Motivo da Consulta / Queixa Principal
+            </label>
             <textarea
-              className="min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="min-h-24 w-full rounded-xl border border-input bg-background/60 px-3.5 py-2.5 text-sm placeholder:text-muted-foreground/60 transition-all focus:border-primary/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
-              placeholder="Motivo da consulta"
+              placeholder="Descreva o motivo da consulta, sintomas referidos ou observações preliminares..."
             />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setCriarOpen(false)} disabled={submitting}>
+
+          {/* Botões de Ação */}
+          <div className="flex items-center justify-end gap-3 pt-3 border-t">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCriarOpen(false);
+                resetCriar();
+              }}
+              disabled={submitting}
+            >
               Cancelar
             </Button>
-            <Button onClick={handleCriar} disabled={submitting}>
-              {submitting ? "A criar..." : "Iniciar Consulta"}
+            <Button
+              onClick={handleCriar}
+              disabled={submitting || !pacienteId}
+              className="min-w-36 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {submitting ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  A iniciar...
+                </span>
+              ) : (
+                "Iniciar Consulta"
+              )}
             </Button>
           </div>
         </div>

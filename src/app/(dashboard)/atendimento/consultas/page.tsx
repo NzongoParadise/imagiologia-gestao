@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function ConsultasPage() {
   await verificarPermissao("atendimento");
 
-  const [especialidades, pacientes, tiposExame, atendimentos] = await Promise.all([
+  const [especialidades, pacientes, tiposExame, atendimentos, consultorios] = await Promise.all([
     prisma.especialidade.findMany({
       where: { ativo: true },
       orderBy: { nome: "asc" },
@@ -32,6 +32,18 @@ export default async function ConsultasPage() {
         criadoPor: { select: { id: true, nome: true } },
       },
     }),
+    prisma.consultorio.findMany({
+      where: { ativo: true },
+      orderBy: { numero: "asc" },
+      select: {
+        id: true,
+        numero: true,
+        nome: true,
+        especialidadeId: true,
+        especialidade: { select: { id: true, nome: true } },
+        capacidade: true,
+      },
+    }),
   ]);
 
   return (
@@ -40,6 +52,7 @@ export default async function ConsultasPage() {
       pacientes={JSON.parse(JSON.stringify(pacientes))}
       tiposExame={JSON.parse(JSON.stringify(tiposExame))}
       atendimentos={JSON.parse(JSON.stringify(atendimentos))}
+      consultoriosIniciais={JSON.parse(JSON.stringify(consultorios))}
     />
   );
 }

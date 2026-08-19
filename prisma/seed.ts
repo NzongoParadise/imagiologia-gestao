@@ -183,6 +183,39 @@ await prisma.exame.upsert({
   }
   console.log(`✓ ${especialidades.length} specialties created`);
 
+  // Create consultorios
+  const espList = await prisma.especialidade.findMany();
+  const espMap = new Map(espList.map((e) => [e.nome, e.id]));
+
+  const consultoriosPadrao = [
+    { numero: "Cons-01", nome: "Consultório de Medicina Geral", especialidadeId: espMap.get("Medicina Geral") || null, bloco: "Bloco A", andar: "Piso 1", capacidade: 1 },
+    { numero: "Cons-02", nome: "Consultório de Pediatria", especialidadeId: espMap.get("Pediatria") || null, bloco: "Bloco A", andar: "Piso 1", capacidade: 1 },
+    { numero: "Cons-03", nome: "Consultório de Cardiologia", especialidadeId: espMap.get("Cardiologia") || null, bloco: "Bloco B", andar: "Piso 2", capacidade: 1 },
+    { numero: "Cons-04", nome: "Consultório de Ginecologia", especialidadeId: espMap.get("Ginecologia") || null, bloco: "Bloco B", andar: "Piso 2", capacidade: 1 },
+    { numero: "Cons-05", nome: "Consultório de Ortopedia", especialidadeId: espMap.get("Ortopedia") || null, bloco: "Bloco C", andar: "Piso 1", capacidade: 1 },
+    { numero: "Cons-06", nome: "Consultório de Dermatologia", especialidadeId: espMap.get("Dermatologia") || null, bloco: "Bloco B", andar: "Piso 1", capacidade: 1 },
+    { numero: "Cons-07", nome: "Consultório de Oftalmologia", especialidadeId: espMap.get("Oftalmologia") || null, bloco: "Bloco C", andar: "Piso 2", capacidade: 1 },
+    { numero: "Cons-08", nome: "Consultório Multidisciplinar", especialidadeId: null, bloco: "Bloco Central", andar: "Piso 1", capacidade: 1 },
+  ];
+
+  for (const c of consultoriosPadrao) {
+    await prisma.consultorio.upsert({
+      where: { numero: c.numero },
+      update: {
+        nome: c.nome,
+        especialidadeId: c.especialidadeId,
+        bloco: c.bloco,
+        andar: c.andar,
+        capacidade: c.capacidade,
+      },
+      create: {
+        ...c,
+        criadoPorId: admin.id,
+      },
+    });
+  }
+  console.log(`✓ ${consultoriosPadrao.length} consultorios created`);
+
   // Create urgency banks (BUM | BUP | BUCO)
   const bancosUrgencia = [
     { nome: "Banco de Urgência Médica", tipo: "BUM", descricao: "Urgências clínicas médicas" },
