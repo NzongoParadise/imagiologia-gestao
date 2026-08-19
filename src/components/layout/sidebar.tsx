@@ -57,14 +57,10 @@ const menuGroups: MenuGroup[] = [
   {
     label: "Atendimento clínico",
     items: [
-      { href: "/atendimento", label: "Atendimento", icon: Stethoscope },
+      { href: "/atendimento", label: "Central de atendimento", icon: Stethoscope },
       { href: "/atendimento/consultas", label: "Consultas", icon: ClipboardList },
-      { href: "/consultorios", label: "Consultórios", icon: Building2 },
       { href: "/atendimento/urgencias", label: "Urgências", icon: Ambulance },
-      { href: "/atendimento/encaminhamentos", label: "Encaminhamentos", icon: UsersRound },
-      { href: "/atendimento/fila", label: "Fila e chamadas", icon: ListOrdered },
-      { href: "/atendimento/dashboard", label: "Indicadores do dia", icon: BarChart3 },
-      { href: "/atendimento/relatorios", label: "Relatórios clínicos", icon: FileText },
+      { href: "/consultorios", label: "Consultórios", icon: Building2 },
       { href: "/pacientes", label: "Pacientes", icon: Users },
       { href: "/agendamentos", label: "Agendamentos", icon: CalendarDays },
     ],
