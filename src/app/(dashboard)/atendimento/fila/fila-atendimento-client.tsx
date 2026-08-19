@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BellRing, ListOrdered, Printer, RotateCcw, UserRoundCheck, Volume2 } from "lucide-react";
+import { BellRing, ListOrdered, Monitor, Printer, RotateCcw, UserRoundCheck, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -125,16 +125,25 @@ export function FilaAtendimentoClient({ fila }: FilaAtendimentoClientProps) {
           <h1 className="text-2xl font-bold">Fila e chamadas</h1>
           <p className="text-sm text-muted-foreground">Controle a ordem de atendimento e a chamada de pacientes.</p>
         </div>
-        {pode("atendimento", "editar") && (
-          <>
-          <Button variant="outline" onClick={() => aguardando[0] && imprimirFicha(aguardando[0])} disabled={aguardando.length === 0}>
-            <Printer className="h-4 w-4" /> Imprimir ficha
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open("/atendimento/fila/painel", "painel-fila", "width=1280,height=720,fullscreen=yes")}
+          >
+            <Monitor className="h-4 w-4" /> Abrir painel
           </Button>
-          <Button onClick={chamar} disabled={processando || aguardando.length === 0}>
-            <BellRing className="h-4 w-4" /> Chamar próximo
-          </Button>
-          </>
-        )}
+          {pode("atendimento", "editar") && (
+            <>
+              <Button variant="outline" onClick={() => aguardando[0] && imprimirFicha(aguardando[0])} disabled={aguardando.length === 0}>
+                <Printer className="h-4 w-4" /> Imprimir ficha
+              </Button>
+              <Button onClick={chamar} disabled={processando || aguardando.length === 0}>
+                <BellRing className="h-4 w-4" /> Chamar próximo
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:max-w-md">
