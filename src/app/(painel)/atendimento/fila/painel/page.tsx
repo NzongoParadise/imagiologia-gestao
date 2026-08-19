@@ -102,20 +102,18 @@ export default function PainelFilaPage() {
       if (!Array.isArray(dados)) return;
       setChamados(dados);
 
-      // Detectar nova chamada (id ainda não visto)
       const novo = dados.find((d) => !seenIds.current.has(d.id));
       if (novo) {
         seenIds.current.add(novo.id);
         dispararFlash(novo);
       } else if (dados.length > 0 && !chamadaAtiva) {
-        // Na primeira carga mostrar o mais recente sem flash
         const primeiro = dados[0];
         seenIds.current.add(primeiro.id);
         setChamadaAtiva(primeiro);
         setTempoEspera(primeiro.secsAtras);
       }
     } catch {
-      // silent — sala de espera não deve mostrar erros técnicos
+      // silent
     }
   }, [chamadaAtiva, dispararFlash]);
 
@@ -176,7 +174,6 @@ export default function PainelFilaPage() {
             animation: "fadeIn 0.3s ease",
           }}
         >
-          {/* Pulso exterior */}
           <div
             style={{
               position: "absolute",
@@ -188,8 +185,6 @@ export default function PainelFilaPage() {
               animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite",
             }}
           />
-
-          {/* Card principal de chamada */}
           <div
             style={{
               position: "relative",
@@ -204,7 +199,6 @@ export default function PainelFilaPage() {
               boxShadow: `0 0 80px ${corTipo(chamadaAtiva.tipoFila)}55, 0 0 20px rgba(0,0,0,0.8)`,
             }}
           >
-            {/* Tipo */}
             <div
               style={{
                 display: "inline-block",
@@ -223,7 +217,6 @@ export default function PainelFilaPage() {
               {chamadaAtiva.tipoFila === "URGENCIA" ? "🚨 Urgência" : "📋 Consulta"}
             </div>
 
-            {/* Senha — destaque máximo */}
             <div
               style={{
                 fontSize: "clamp(80px, 18vw, 140px)",
@@ -239,7 +232,6 @@ export default function PainelFilaPage() {
               {chamadaAtiva.senha}
             </div>
 
-            {/* Nome do paciente */}
             <div
               style={{
                 fontSize: "clamp(24px, 4vw, 36px)",
@@ -253,19 +245,10 @@ export default function PainelFilaPage() {
               {chamadaAtiva.paciente}
             </div>
 
-            {/* Especialidade */}
-            <div
-              style={{
-                fontSize: 16,
-                color: "#94a3b8",
-                marginBottom: 28,
-                fontWeight: 500,
-              }}
-            >
+            <div style={{ fontSize: 16, color: "#94a3b8", marginBottom: 28, fontWeight: 500 }}>
               {chamadaAtiva.especialidade}
             </div>
 
-            {/* Consultório — destaque */}
             {chamadaAtiva.consultorio ? (
               <div
                 style={{
@@ -304,7 +287,6 @@ export default function PainelFilaPage() {
               </div>
             )}
 
-            {/* Prioridade */}
             <div
               style={{
                 display: "inline-flex",
@@ -332,7 +314,6 @@ export default function PainelFilaPage() {
             </div>
           </div>
 
-          {/* Fechar flash manualmente */}
           <button
             onClick={() => setMostrarFlash(false)}
             style={{
@@ -352,7 +333,7 @@ export default function PainelFilaPage() {
         </div>
       )}
 
-      {/* ── Header ── */}
+      {/* ── Header do painel ── */}
       <header
         style={{
           display: "flex",
@@ -402,7 +383,7 @@ export default function PainelFilaPage() {
       {/* ── Corpo ── */}
       <main style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 380px", gap: 0, overflow: "hidden" }}>
 
-        {/* Coluna esquerda — chamada atual em destaque */}
+        {/* Coluna esquerda — chamada atual */}
         <div
           style={{
             display: "flex",
@@ -419,7 +400,6 @@ export default function PainelFilaPage() {
                 Em atendimento
               </div>
 
-              {/* Senha */}
               <div
                 style={{
                   fontSize: "clamp(100px, 20vw, 180px)",
@@ -434,7 +414,6 @@ export default function PainelFilaPage() {
                 {chamadaAtiva.senha}
               </div>
 
-              {/* Nome */}
               <div
                 style={{
                   fontSize: "clamp(22px, 3.5vw, 32px)",
@@ -453,7 +432,6 @@ export default function PainelFilaPage() {
                 {chamadaAtiva.especialidade}
               </div>
 
-              {/* Consultório */}
               {chamadaAtiva.consultorio ? (
                 <div
                   style={{
@@ -492,7 +470,6 @@ export default function PainelFilaPage() {
                 </div>
               )}
 
-              {/* Tempo desde chamada */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#475569", fontSize: 13 }}>
                 <span>⏱</span>
                 <span>
@@ -516,7 +493,7 @@ export default function PainelFilaPage() {
           )}
         </div>
 
-        {/* Coluna direita — fila de espera */}
+        {/* Coluna direita — histórico */}
         <div
           style={{
             display: "flex",
@@ -559,7 +536,6 @@ export default function PainelFilaPage() {
                     transition: "background 0.3s",
                   }}
                 >
-                  {/* Senha badge */}
                   <div
                     style={{
                       minWidth: 60,
@@ -582,7 +558,6 @@ export default function PainelFilaPage() {
                     {item.senha}
                   </div>
 
-                  {/* Info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
@@ -601,7 +576,6 @@ export default function PainelFilaPage() {
                     </div>
                   </div>
 
-                  {/* Hora */}
                   <div style={{ fontSize: 11, color: "#334155", flexShrink: 0 }}>
                     {formatarHora(item.chamadoEm)}
                   </div>
